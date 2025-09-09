@@ -1,176 +1,520 @@
+/* style.css (Fluid Layout & Responsive Table Fixes - with new buttons/filters) */
+
+/* Universal Box-Sizing for predictable layouts */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 :root {
-    --primary-color: #005a9c;
-    --secondary-color: #f0f8ff;
-    --dark-grey: #333;
-    --light-grey: #f4f4f4;
-    --border-color: #ddd;
-    --success-color: #28a745;
+    --rtrl-blue-dark: #003366;    /* Dark blue for headers, primary buttons */
+    --rtrl-blue-medium: #0056B3; /* Medium blue for accents */
+    --rtrl-blue-light: #E6F0F8;  /* Light blue for backgrounds, subtle highlights */
+    --rtrl-grey-dark: #333333;   /* Main text color */
+    --rtrl-grey-medium: #666666; /* Secondary text, borders */
+    --rtrl-grey-light: #f5f7f9;  /* App background - slightly textured */
+    --rtrl-white: #ffffff;
+    --rtrl-border-color: #d1d9e6; /* Subtle border for elements */
+    --rtrl-success-color: #28a745; /* Green for success messages, download button */
+    --rtrl-error-color: #dc3545;   /* Red for error messages */
+    --rtrl-box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+    --rtrl-card-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    background-color: var(--light-grey);
-    color: var(--dark-grey);
+/* Global Styles */
+html, body {
+    height: 100%;
     margin: 0;
-    padding: 20px;
+    padding: 0;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    background-color: var(--rtrl-grey-light);
+    color: var(--rtrl-grey-dark);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align content to the top instead of center */
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: #fff;
-    padding: 25px 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.app-container {
+    width: 96%; /* Take up 96% of the viewport width */
+    max-width: 1600px; /* A generous maximum width */
+    margin: 2vw auto; /* 2vw margin top/bottom, auto left/right for centering */
+    background: var(--rtrl-white);
+    padding: 35px; /* Internal padding for content */
+    border-radius: 12px;
+    box-shadow: var(--rtrl-box-shadow);
+    display: flex;
+    flex-direction: column;
 }
 
+/* Header */
 header {
     text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 20px;
-    margin-bottom: 30px;
-}
-
-header h1 {
-    color: var(--primary-color);
-    margin: 0;
-}
-
-main section {
+    border-bottom: 1px solid var(--rtrl-border-color);
+    padding-bottom: 30px;
     margin-bottom: 40px;
 }
 
-h2 {
-    color: var(--primary-color);
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 5px;
-    margin-bottom: 20px;
+.header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.form-group {
+.app-icon {
+    font-size: 3.5em;
+    color: var(--rtrl-blue-medium);
     margin-bottom: 15px;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+header h1 {
+    color: var(--rtrl-blue-dark);
+    margin: 0 0 12px 0;
+    font-size: 2.5em;
+    letter-spacing: -0.5px;
+}
+
+header p {
+    color: var(--rtrl-grey-medium);
+    font-size: 1.15em;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Main Layout: Two Columns */
+.main-layout {
+    display: flex;
+    gap: 35px; /* Space between sidebar and main content */
+    flex-grow: 1;
+    flex-wrap: nowrap; /* Prevent unwanted wrapping on larger screens */
+}
+
+#sidebar-controls {
+    flex: 0 0 350px; /* Fixed width for sidebar, no shrinking/growing */
+    background-color: var(--rtrl-blue-light);
+    padding: 30px;
+    display: flex; /* Make sidebar a flex container */
+    flex-direction: column; /* Stack its children vertically */
+}
+
+#main-content {
+    flex-grow: 1; /* Main content takes remaining space */
+    min-width: 0; /* Important for flex items to prevent overflow when content inside is wide */
+    display: flex;
+    flex-direction: column;
+    gap: 35px;
+}
+
+/* Card Styling for Sections */
+.card {
+    background-color: var(--rtrl-white);
+    border-radius: 10px;
+    box-shadow: var(--rtrl-card-shadow);
+    padding: 30px;
+}
+
+#sidebar-controls.card {
+    padding: 30px;
+    box-shadow: none; 
+    background-color: var(--rtrl-blue-light);
+}
+
+/* Section Headings */
+h2 {
+    color: var(--rtrl-blue-dark);
+    font-size: 1.8em;
+    margin-top: 0;
+    margin-bottom: 25px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--rtrl-blue-medium);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+h2 i.fas {
+    color: var(--rtrl-blue-medium);
+    font-size: 0.9em;
+}
+
+/* Filter Group Styling */
+.filter-group {
+    margin-top: 40px;
+    border-top: 1px solid var(--rtrl-border-color);
+    padding-top: 30px;
+}
+
+.filter-group .filter-title {
+    font-size: 1.4em;
+    color: var(--rtrl-blue-dark);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group .filter-title i {
+    color: var(--rtrl-blue-medium);
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px; /* Added some margin for spacing between checkboxes */
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    accent-color: var(--rtrl-blue-medium);
+}
+
+.checkbox-group label {
+    margin-bottom: 0;
+    font-weight: normal;
+    font-size: 1em;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-group label i.fab,
+.checkbox-group label i.fas { /* Include fas for phone/email icons */
+    font-size: 1.2em;
+    color: var(--rtrl-blue-medium);
+    margin-left: 5px;
+    margin-right: -2px;
+}
+
+
+/* Form Groups */
+.form-group {
+    margin-bottom: 25px;
 }
 
 label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: var(--rtrl-grey-dark);
+    font-size: 1.05em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+label i.fas {
+    color: var(--rtrl-blue-medium);
 }
 
 input[type="text"],
 input[type="number"] {
     width: 100%;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid var(--border-color);
+    padding: 14px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--rtrl-border-color);
     box-sizing: border-box;
-    font-size: 1rem;
+    font-size: 1.05em;
+    color: var(--rtrl-grey-dark);
+    background-color: #fcfdfe;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-button {
-    background-color: var(--primary-color);
-    color: #fff;
+input[type="text"]:focus,
+input[type="number"]:focus {
+    border-color: var(--rtrl-blue-medium);
+    box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.2);
+    outline: none;
+}
+
+/* Buttons */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     border: none;
-    padding: 12px 20px;
-    border-radius: 5px;
+    padding: 16px 28px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 1rem;
-    font-weight: bold;
-    transition: background-color 0.3s ease;
+    font-size: 1.1em;
+    font-weight: 600;
+    transition: background-color 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+    width: 100%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-button:hover {
-    background-color: #004170;
+.btn-primary {
+    background-color: var(--rtrl-blue-dark);
+    color: #fff;
 }
 
-button:disabled {
-    background-color: #aaa;
+.btn-primary:hover {
+    background-color: var(--rtrl-blue-medium);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn-success { /* For Download All Excel */
+    background-color: var(--rtrl-success-color);
+    color: #fff;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn-secondary { /* For Notifyre & Google Workspace */
+    background-color: var(--rtrl-grey-medium);
+    color: var(--rtrl-white);
+}
+
+.btn-secondary:hover {
+    background-color: var(--rtrl-blue-medium); /* Use primary hover color for secondary too */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+
+.btn:disabled {
+    background-color: #cccccc;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
+/* Download Buttons Group */
+.download-buttons-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between download buttons */
+    margin-top: 25px; /* Space above the group */
+}
+.download-buttons-group .btn {
+    width: auto; /* Allow buttons to be natural width */
+    align-self: flex-start; /* Align to the left in flex container */
+    padding: 14px 25px; /* Adjust padding for these buttons */
+}
+
+
+/* Progress Section */
 .progress-bar-container {
     width: 100%;
-    background-color: #e0e0e0;
-    border-radius: 5px;
+    background-color: var(--rtrl-border-color);
+    border-radius: 8px;
     overflow: hidden;
-    margin-bottom: 15px;
+    margin-bottom: 25px;
+    height: 30px;
+    position: relative;
+}
+
+/* Keyframe for pulsating animation */
+@keyframes pulse-progress {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
 }
 
 .progress-bar {
     width: 0%;
-    height: 20px;
-    background-color: var(--success-color);
+    height: 100%;
+    background: linear-gradient(135deg, var(--rtrl-blue-medium) 0%, var(--rtrl-blue-dark) 50%, var(--rtrl-blue-medium) 100%);
+    background-size: 200% 100%;
     transition: width 0.4s ease-in-out;
+    text-align: center;
+    line-height: 30px;
+    color: #fff;
+    font-size: 0.95em;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
 }
+
+.progress-bar.pulsing {
+    animation: pulse-progress 2s linear infinite;
+    background: linear-gradient(135deg, var(--rtrl-blue-medium) 0%, var(--rtrl-success-color) 50%, var(--rtrl-blue-medium) 100%);
+    background-size: 400% 100%;
+}
+
 
 .log-console {
-    background-color: #2d2d2d;
-    color: #f0f0f0;
-    font-family: 'Courier New', Courier, monospace;
-    padding: 15px;
-    border-radius: 5px;
-    height: 150px;
+    background-color: #2d313a;
+    color: #e0e6f0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    padding: 18px;
+    border-radius: 8px;
+    height: 220px;
     overflow-y: auto;
-    font-size: 0.9em;
+    font-size: 0.88em;
     white-space: pre-wrap;
+    box-shadow: inset 0 1px 5px rgba(0,0,0,0.3);
+    line-height: 1.5;
 }
 
-.disclaimer {
-    background-color: var(--secondary-color);
-    border-left: 4px solid var(--primary-color);
-    padding: 10px 15px;
-    margin: 20px 0;
-    font-size: 0.9em;
+/* Log entry specific styling */
+.log-entry {
+    display: block;
+}
+.log-error { color: var(--rtrl-error-color); }
+.log-success { color: var(--rtrl-success-color); }
+.log-info { color: #87ceeb; }
+
+/* Results Section */
+.results-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .table-container {
-    max-height: 400px;
+    flex-grow: 1;
     overflow-y: auto;
-    border: 1px solid var(--border-color);
+    overflow-x: auto; /* Allow horizontal scrolling for table */
+    border: 1px solid var(--rtrl-border-color);
+    border-radius: 8px;
+    margin-bottom: 0; /* Removed bottom margin, now handled by download-buttons-group gap */
+    background-color: var(--rtrl-white);
 }
 
 table {
     width: 100%;
+    min-width: 1100px; /* Increased min-width for better column display on wider screens */
     border-collapse: collapse;
 }
 
 th, td {
-    padding: 12px;
+    padding: 16px;
     text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--rtrl-border-color);
     font-size: 0.9em;
+    vertical-align: middle;
+    word-break: break-word; /* Allow long words/URLs to break */
 }
 
+/* Specific min-widths for columns to ensure good display */
+th:nth-child(1), td:nth-child(1) { min-width: 160px; } /* Business Name */
+th:nth-child(2), td:nth-child(2) { min-width: 90px; }  /* Category */
+th:nth-child(3), td:nth-child(3) { min-width: 90px; }  /* Suburb */
+th:nth-child(4), td:nth-child(4) { min-width: 180px; } /* Address */
+th:nth-child(5), td:nth-child(5) { min-width: 120px; } /* Website */
+th:nth-child(6), td:nth-child(6) { min-width: 100px; } /* Owner */
+th:nth-child(7), td:nth-child(7) { min-width: 130px; } /* Email */
+th:nth-child(8), td:nth-child(8) { min-width: 100px; } /* Phone */
+th:nth-child(9), td:nth-child(9) { min-width: 80px; }  /* Insta */
+th:nth-child(10), td:nth-child(10) { min-width: 80px; } /* FB */
+th:nth-child(11), td:nth-child(11) { min-width: 80px; } /* Maps */
+
+
 thead th {
-    background-color: var(--secondary-color);
+    background-color: var(--rtrl-blue-light);
+    color: var(--rtrl-blue-dark);
+    font-weight: 600;
     position: sticky;
     top: 0;
     z-index: 1;
+    text-transform: uppercase;
+    font-size: 0.85em;
+    letter-spacing: 0.5px;
 }
 
 tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
+    background-color: #fcfdfe;
 }
 
 tbody tr:hover {
-    background-color: #e6f2ff;
+    background-color: #eaf3fb;
 }
 
-#downloadButton {
-    margin-top: 20px;
-    background-color: var(--success-color);
+td a {
+    color: var(--rtrl-blue-medium);
+    text-decoration: none;
+    transition: color 0.2s ease;
 }
 
-#downloadButton:hover {
-    background-color: #218838;
+td a:hover {
+    text-decoration: underline;
+    color: var(--rtrl-dark-blue);
 }
 
+/* Footer */
 footer {
     text-align: center;
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border-color);
+    margin-top: 50px;
+    padding-top: 30px;
+    border-top: 1px solid var(--rtrl-border-color);
     font-size: 0.9em;
-    color: #777;
+    color: var(--rtrl-grey-medium);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .main-layout {
+        flex-direction: column;
+        gap: 25px;
+    }
+    #sidebar-controls {
+        flex: auto;
+        width: 100%;
+    }
+    .btn {
+        width: 100%;
+    }
+    .download-buttons-group {
+        flex-direction: column; /* Stack download buttons on small screens */
+    }
+    .download-buttons-group .btn {
+        width: 100%;
+        align-self: center;
+    }
+    .app-container {
+        margin: 15px auto;
+        padding: 25px;
+    }
+}
+
+@media (max-width: 768px) {
+    html, body {
+        align-items: flex-start;
+    }
+    .app-container {
+        border-radius: 0;
+        box-shadow: none;
+        padding: 15px;
+        width: 100vw;
+        margin: 0;
+    }
+    header h1 {
+        font-size: 2em;
+    }
+    header p {
+        font-size: 1em;
+    }
+    h2 {
+        font-size: 1.5em;
+    }
+    th, td {
+        padding: 12px;
+        font-size: 0.8em;
+    }
+    table {
+        min-width: 700px;
+    }
+}
+
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.6em;
+    }
+    h2 {
+        font-size: 1.3em;
+    }
+    th, td {
+        font-size: 0.75em;
+        padding: 10px;
+    }
+    table {
+        min-width: 600px;
+    }
 }
