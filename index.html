@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Client Prospector</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- SheetJS library for Excel generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Real Estate Client Prospector</h1>
+            <p>Automate the research process for finding potential commercial tenants.</p>
+        </header>
+
+        <main>
+            <section class="controls">
+                <h2>1. Define Your Search</h2>
+                <div class="form-group">
+                    <label for="category">Business Category:</label>
+                    <input type="text" id="category" value="Cafés">
+                </div>
+                <div class="form-group">
+                    <label for="location">Suburb / Area:</label>
+                    <input type="text" id="location" value="Surry Hills, Sydney">
+                </div>
+                <div class="form-group">
+                    <label for="count">Number of Businesses to Find:</label>
+                    <input type="number" id="count" value="30" min="1" max="50">
+                </div>
+                <button id="startButton">Start Research</button>
+            </section>
+
+            <section class="progress-section">
+                <h2>2. Research in Progress</h2>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <pre id="log" class="log-console"></pre>
+            </section>
+            
+            <section class="results-section">
+                <h2>3. Collected Data</h2>
+                <p class="disclaimer">
+                    <strong>Note:</strong> This is a front-end simulation. It generates realistic data to demonstrate the application's workflow. A full-stack version would perform live scraping.
+                </p>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>BusinessName</th>
+                                <th>Category</th>
+                                <th>Suburb/Area</th>
+                                <th>StreetAddress</th>
+                                <th>Website</th>
+                                <th>OwnerName</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>InstagramURL</th>
+                                <th>FacebookURL</th>
+                                <th>GoogleMapsURL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- JS will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+                <button id="downloadButton" disabled>Download as Excel (.xlsx)</button>
+            </section>
+        </main>
+        <footer>
+            <p>Created as a demonstration of the data collection process.</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
