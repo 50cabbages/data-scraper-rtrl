@@ -1,4 +1,4 @@
-// server.js (v10 - Guaranteed Qualified Count)
+// server.js (v16 - Critical Fix for Endless Loop in URL Collection)
 const express = require('express');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -45,122 +45,68 @@ io.on('connection', (socket) => {
             await page.setExtraHTTPHeaders({ 'Accept-Language': 'en' });
 
             const qualifiedBusinesses = [];
-            const processedUniqueGoogleUrls = new Set(); // Stores all unique Google Maps URLs seen/processed
-            const pendingUrlsToProcess = []; // Queue of URLs to visit for details
+            let totalRawUrlsProcessed = 0; 
+            const MAX_RAW_URLS_TO_PROCESS_SAFETY_LIMIT = Math.max(count * 25, 600); // Increased safety limit for raw URLs
 
-            const MAX_CONSECUTIVE_SCROLL_NO_NEW_URLS = 5; // How many times to scroll without finding new URLs before giving up
-            const MAX_TOTAL_RAW_URLS_TO_PROCESS = Math.max(count * 8, 150); // Hard cap on how many *raw* URLs we process in total before stopping, scales with count
-            let consecutiveScrollsWithoutNewUrls = 0;
-            let totalRawUrlsProcessed = 0; // Total businesses visited for details
+            socket.emit('log', `LEVEL 1: Collecting all unique Google Maps business URLs by continuous scrolling...`);
+            const allUniqueGoogleMapsUrls = await collectGoogleMapsUrlsContinuously(page, searchQuery, socket);
+            socket.emit('log', `-> Finished collecting initial URLs from Google Maps. Found ${allUniqueGoogleMapsUrls.length} unique raw listings.`);
 
-            socket.emit('log', 'LEVEL 1: Navigating to Google Maps search results...');
-            await page.goto('https://www.google.com/maps', { waitUntil: 'networkidle2', timeout: 35000 });
-            try {
-                await page.waitForSelector('form[action^="https://consent.google.com"] button[aria-label="Accept all"]', { timeout: 5000 });
-                await page.click('form[action^="https://consent.google.com"] button[aria-label="Accept all"]');
-                socket.emit('log', '   -> Accepted Google consent dialog.');
-            } catch (e) {
-                socket.emit('log', '   -> No Google consent dialog found or skipped.');
+            if (allUniqueGoogleMapsUrls.length === 0) {
+                socket.emit('log', `⚠️ Warning: No initial business listings found for "${searchQuery}". Cannot proceed with detailed scraping.`, 'warning');
+                await browser.close();
+                socket.emit('scrape_complete', []); 
+                return;
             }
 
-            await page.type('#searchboxinput', searchQuery);
-            await page.click('#searchbox-searchbutton');
-            const resultsContainerSelector = 'div[role="feed"]';
+            socket.emit('log', `LEVEL 2: Starting detailed scraping and qualification of ${allUniqueGoogleMapsUrls.length} raw listings...`);
             
-            try {
-                await page.waitForSelector(resultsContainerSelector, { timeout: 25000 }); // Wait longer for results
-                socket.emit('log', `   -> Initial search results container loaded.`);
-            } catch (error) {
-                socket.emit('log', `❌ Error: Google Maps results container not found after ${25000 / 1000}s. Check query or if results exist.`, 'error');
-                throw new Error(`Results container missing: ${error.message}`);
-            }
+            for (const urlToProcess of allUniqueGoogleMapsUrls) {
+                if (qualifiedBusinesses.length >= count || totalRawUrlsProcessed >= MAX_RAW_URLS_TO_PROCESS_SAFETY_LIMIT) {
+                    socket.emit('log', `   -> Target (${count}) met or max raw URLs processed (${MAX_RAW_URLS_TO_PROCESS_SAFETY_LIMIT}) reached. Stopping further processing.`);
+                    break;
+                }
 
-            // --- Main loop to continuously collect and process URLs ---
-            while (qualifiedBusinesses.length < count && totalRawUrlsProcessed < MAX_TOTAL_RAW_URLS_TO_PROCESS) {
-                // 1. Collect currently visible URLs from Google Maps
-                const currentVisibleUrls = await page.$$eval(`${resultsContainerSelector} a[href*="https://www.google.com/maps/place/"]`, links => links.map(link => link.href));
-                const newUniqueUrlsFound = currentVisibleUrls.filter(url => !processedUniqueGoogleUrls.has(url));
+                totalRawUrlsProcessed++;
+                socket.emit('log', `\n--- Processing Raw Business ${totalRawUrlsProcessed} (Qualified: ${qualifiedBusinesses.length}/${count}) ---`);
+                
+                let googleData = null;
+                try {
+                    googleData = await scrapeGoogleMapsDetails(page, urlToProcess, socket);
+                    socket.emit('log', `-> Business: ${googleData.BusinessName || 'N/A'}`);
+                } catch (detailError) {
+                    socket.emit('log', `❌ Error getting details from Maps page (${urlToProcess}): ${detailError.message.split('\n')[0]}. Skipping this URL.`, 'error');
+                    socket.emit('progress_update', { qualifiedFound: qualifiedBusinesses.length, qualifiedTarget: count }); 
+                    continue;
+                }
 
-                if (newUniqueUrlsFound.length > 0) {
-                    socket.emit('log', `   -> Found ${newUniqueUrlsFound.length} new unique URLs in current view.`);
-                    newUniqueUrlsFound.forEach(url => {
-                        pendingUrlsToProcess.push(url);
-                        processedUniqueGoogleUrls.add(url); // Mark as seen
-                    });
-                    consecutiveScrollsWithoutNewUrls = 0; // Reset scroll counter
+                let websiteData = {};
+                if (googleData.Website) {
+                    socket.emit('log', `LEVEL 3: Visiting website (${googleData.Website}) for contact details...`);
+                    websiteData = await scrapeWebsiteForGoldData(page, googleData.Website, socket);
+                    socket.emit('log', `-> Owner: ${websiteData.OwnerName || 'Not found'}, Email: ${websiteData.Email || 'None'}`);
                 } else {
-                    socket.emit('log', `   -> No new unique URLs found in current map view.`);
+                    socket.emit('log', `LEVEL 3: Skipped, no website found (from Google Maps).`);
                 }
 
-                // 2. Process URLs from the pending queue
-                while (pendingUrlsToProcess.length > 0 && qualifiedBusinesses.length < count && totalRawUrlsProcessed < MAX_TOTAL_RAW_URLS_TO_PROCESS) {
-                    const urlToProcess = pendingUrlsToProcess.shift(); // Take one from the queue
+                const fullBusinessData = { ...googleData, ...websiteData };
 
-                    totalRawUrlsProcessed++;
-                    socket.emit('log', `\n--- Processing Raw Business ${totalRawUrlsProcessed} (Qualified: ${qualifiedBusinesses.length}/${count}) ---`);
-                    socket.emit('log', `LEVEL 2: Getting details from Google Maps page for ${urlToProcess}...`);
-                    
-                    let googleData = null;
-                    try {
-                        googleData = await scrapeGoogleMapsDetails(page, urlToProcess);
-                        socket.emit('log', `-> Business: ${googleData.BusinessName || 'N/A'}`);
-                    } catch (detailError) {
-                        socket.emit('log', `❌ Error getting details from Maps page (${urlToProcess}): ${detailError.message.split('\n')[0]}. Skipping this URL.`, 'error');
-                        socket.emit('progress_update', { qualifiedFound: qualifiedBusinesses.length, qualifiedTarget: count }); // Update with current qualified count
-                        continue; // Skip to next URL if Google Maps details failed
-                    }
-
-
-                    let websiteData = {};
-                    if (googleData.Website) {
-                        socket.emit('log', `LEVEL 3: Visiting website (${googleData.Website}) to find contacts and owner...`);
-                        websiteData = await scrapeWebsiteForGoldData(page, googleData.Website, socket);
-                        socket.emit('log', `-> Owner: ${websiteData.OwnerName || 'Not found'}, Email: ${websiteData.Email || 'None'}`);
-                    } else {
-                        socket.emit('log', `LEVEL 3: Skipped, no website found (from Google Maps).`);
-                    }
-
-                    const fullBusinessData = { ...googleData, ...websiteData };
-
-                    // QUALIFICATION CRITERIA: Must have both Email and Phone
-                    if (fullBusinessData.Email && fullBusinessData.Email.trim() !== '' &&
-                        fullBusinessData.Phone && fullBusinessData.Phone.trim() !== '') {
-                        qualifiedBusinesses.push(fullBusinessData);
-                        socket.emit('log', `✅ QUALIFIED: Business meets email and phone criteria! (${qualifiedBusinesses.length}/${count})`);
-                    } else {
-                        socket.emit('log', `   SKIPPED: Business does not have both email and phone.`);
-                    }
-
-                    // Always update progress based on qualified found, vs requested count
-                    socket.emit('progress_update', { 
-                        qualifiedFound: qualifiedBusinesses.length,
-                        qualifiedTarget: count
-                    });
+                if (fullBusinessData.Email && fullBusinessData.Email.trim() !== '' &&
+                    fullBusinessData.Phone && fullBusinessData.Phone.trim() !== '') {
+                    qualifiedBusinesses.push(fullBusinessData);
+                    socket.emit('log', `✅ QUALIFIED: Business meets email and phone criteria! (${qualifiedBusinesses.length}/${count})`);
+                } else {
+                    socket.emit('log', `   SKIPPED: Business does not have both email and phone.`);
                 }
 
-                // 3. If we still need more qualified leads, try scrolling Google Maps
-                if (qualifiedBusinesses.length < count && totalRawUrlsProcessed < MAX_TOTAL_RAW_URLS_TO_PROCESS) {
-                    if (newUniqueUrlsFound.length === 0) { // Only increment if previous scroll found nothing new
-                        consecutiveScrollsWithoutNewUrls++;
-                    }
-
-                    if (consecutiveScrollsWithoutNewUrls >= MAX_CONSECUTIVE_SCROLL_NO_NEW_URLS) {
-                        socket.emit('log', `   -> Max consecutive scrolls without new URLs reached (${MAX_CONSECUTIVE_SCROLL_NO_NEW_URLS}). Assuming end of results in this area. Breaking.`);
-                        break;
-                    }
-
-                    socket.emit('log', `   -> Still need more qualified prospects. Scrolling Google Maps for more results...`);
-                    const containerHandle = await page.$(resultsContainerSelector);
-                    if (!containerHandle) {
-                        socket.emit('log', `❌ Error: Google Maps results container disappeared during scroll. Breaking.`);
-                        break;
-                    }
-                    await page.evaluate(selector => {
-                        const el = document.querySelector(selector);
-                        if (el) el.scrollTop = el.scrollHeight;
-                    }, resultsContainerSelector);
-                    await new Promise(r => setTimeout(r, 2000)); // Give time for content to load after scroll
-                }
+                socket.emit('progress_update', { 
+                    qualifiedFound: qualifiedBusinesses.length,
+                    qualifiedTarget: count
+                });
+            }
+            
+            if (qualifiedBusinesses.length < count) {
+                socket.emit('log', `⚠️ Warning: Could only find ${qualifiedBusinesses.length} qualified prospects out of requested ${count} within the search limits.`, 'warning');
             }
             
             socket.emit('log', `\n✅ Scraping session completed. Found ${qualifiedBusinesses.length} qualified prospects (Target: ${count}). Closing browser.`);
@@ -180,15 +126,95 @@ io.on('connection', (socket) => {
     });
 });
 
-
-// Helper functions (scrapeGoogleMapsDetails, scrapeWebsiteForGoldData)
-// These are slightly refined for more robust error handling / timeouts.
-async function scrapeGoogleMapsDetails(page, url) {
+// --- REWORKED HELPER FUNCTION: Collects URLs by continuously scrolling Google Maps ---
+async function collectGoogleMapsUrlsContinuously(page, searchQuery, socket) {
+    const allUniqueUrls = new Set();
+    const resultsContainerSelector = 'div[role="feed"]';
+    
+    await page.goto('https://www.google.com/maps', { waitUntil: 'networkidle2', timeout: 60000 }); // Increased timeout
     try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 35000 }); // Increased timeout
-        await page.waitForSelector('h1', {timeout: 25000}); // Increased timeout
+        await page.waitForSelector('form[action^="https://consent.google.com"] button[aria-label="Accept all"]', { timeout: 15000 }); // Increased timeout
+        await page.click('form[action^="https://consent.google.com"] button[aria-label="Accept all"]');
+        socket.emit('log', '   -> Accepted Google consent dialog.');
+    } catch (e) { /* ignore */ }
+
+    await page.type('#searchboxinput', searchQuery);
+    await page.click('#searchbox-searchbutton');
+
+    try {
+        await page.waitForSelector(resultsContainerSelector, { timeout: 45000 }); // Increased timeout
+        socket.emit('log', `   -> Initial search results container loaded.`);
     } catch (error) {
-        // Do not re-throw, just return null so it can be skipped/handled by the caller
+        socket.emit('log', `❌ Error: Google Maps results container not found after search. Cannot collect URLs.`, 'error');
+        return [];
+    }
+
+    let lastScrollHeight = 0;
+    let consecutiveNoProgressAttempts = 0; // Counts iterations with no new URLs AND no scroll height change
+    const MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS = 7; // Max attempts to try scrolling without any content/height change
+    const MAX_TOTAL_SCROLL_ATTEMPTS = 150; // Absolute max scrolls to prevent infinite loop
+    let totalScrollsMade = 0;
+    const MAX_URLS_TO_COLLECT_FROM_MAPS_FEED = 1000; // Hard cap on total URLs to collect
+
+    while (totalScrollsMade < MAX_TOTAL_SCROLL_ATTEMPTS && allUniqueUrls.size < MAX_URLS_TO_COLLECT_FROM_MAPS_FEED && consecutiveNoProgressAttempts < MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS) {
+        const initialUniqueUrlCount = allUniqueUrls.size;
+
+        // Extract all currently visible URLs
+        const currentVisibleUrls = await page.$$eval(`${resultsContainerSelector} a[href*="https://www.google.com/maps/place/"]`, links => links.map(link => link.href));
+        currentVisibleUrls.forEach(url => allUniqueUrls.add(url));
+
+        const newUniqueUrlsAddedInThisIteration = allUniqueUrls.size - initialUniqueUrlCount;
+        
+        const containerHandle = await page.$(resultsContainerSelector);
+        if (!containerHandle) {
+            socket.emit('log', `❌ Error: Google Maps results container disappeared during scroll check. Stopping collection.`);
+            break;
+        }
+
+        // --- Perform scroll and check for height change ---
+        await page.evaluate(selector => {
+            const el = document.querySelector(selector);
+            if (el) el.scrollTop = el.scrollHeight;
+        }, resultsContainerSelector);
+        await new Promise(r => setTimeout(r, 3000)); // Increased time after scroll for content to load
+
+        totalScrollsMade++;
+        const newScrollHeight = await page.evaluate(selector => document.querySelector(selector)?.scrollHeight || 0, resultsContainerSelector);
+        
+        // --- Determine if any progress was made this iteration ---
+        const hasNewUrls = newUniqueUrlsAddedInThisIteration > 0;
+        const hasScrolledFurther = newScrollHeight > lastScrollHeight;
+
+        if (hasNewUrls || hasScrolledFurther) {
+            consecutiveNoProgressAttempts = 0; // Reset counter if any progress was made
+            socket.emit('log', `   -> Progress: Found ${hasNewUrls ? newUniqueUrlsAddedInThisIteration + ' new URLs' : 'no new URLs'}. Scroll height ${hasScrolledFurther ? 'increased.' : 'unchanged.'}. Total unique: ${allUniqueUrls.size}.`);
+        } else {
+            consecutiveNoProgressAttempts++;
+            socket.emit('log', `   -> No new unique URLs and no scroll height change detected. Consecutive attempts: ${consecutiveNoProgressAttempts}/${MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS}. (Total scrolls: ${totalScrollsMade}/${MAX_TOTAL_SCROLL_ATTEMPTS})`);
+        }
+        lastScrollHeight = newScrollHeight;
+
+        if (consecutiveNoProgressAttempts >= MAX_CONSECUTIVE_NO_PROGRESS_ATTEMPTS) {
+            socket.emit('log', `   -> Max consecutive attempts without any progress (new URLs or scroll) reached. Assuming end of results in this area. Breaking.`);
+            break; 
+        }
+    }
+    socket.emit('log', `   -> Final URL collection phase complete. Found ${allUniqueUrls.size} unique raw listings after ${totalScrollsMade} scrolls.`);
+    if (totalScrollsMade >= MAX_TOTAL_SCROLL_ATTEMPTS) {
+        socket.emit('log', `⚠️ Warning: Reached maximum total scroll attempts (${MAX_TOTAL_SCROLL_ATTEMPTS}). There might be more results than collected.`, 'warning');
+    }
+    if (allUniqueUrls.size >= MAX_URLS_TO_COLLECT_FROM_MAPS_FEED) {
+        socket.emit('log', `⚠️ Warning: Reached maximum URL collection limit (${MAX_URLS_TO_COLLECT_FROM_MAPS_FEED}) from Google Maps feed.`, 'warning');
+    }
+    return Array.from(allUniqueUrls);
+}
+
+
+async function scrapeGoogleMapsDetails(page, url, socket) {
+    try {
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 }); // Increased timeout
+        await page.waitForSelector('h1', {timeout: 45000}); // Increased timeout
+    } catch (error) {
         throw new Error(`Failed to load Google Maps page or find H1 for URL: ${url}. Error: ${error.message.split('\n')[0]}`);
     }
     
@@ -211,7 +237,7 @@ async function scrapeGoogleMapsDetails(page, url) {
 async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
     const data = { Email: '', InstagramURL: '', FacebookURL: '', OwnerName: '' };
     try {
-        await page.goto(websiteUrl, { waitUntil: 'domcontentloaded', timeout: 35000 }); // Increased timeout
+        await page.goto(websiteUrl, { waitUntil: 'domcontentloaded', timeout: 60000 }); // Increased timeout
 
         const aboutPageKeywords = ['about', 'team', 'our-story', 'who-we-are', 'meet-the-team', 'contact'];
         const ownerTitleKeywords = ['owner', 'founder', 'director', 'co-founder', 'principal', 'manager'];
@@ -223,7 +249,7 @@ async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
             const aboutLink = allLinksOnCurrentPage.find(link => link.text.includes(keyword) && link.href.startsWith('http'));
             if (aboutLink && aboutLink.href) {
                 socket.emit('log', `   -> Found '${keyword}' page link, navigating to: ${aboutLink.href}...`);
-                await page.goto(aboutLink.href, { waitUntil: 'domcontentloaded', timeout: 25000 }); // Increased timeout
+                await page.goto(aboutLink.href, { waitUntil: 'domcontentloaded', timeout: 45000 }); // Increased timeout
                 foundAboutLink = true;
                 break;
             }
@@ -271,5 +297,5 @@ async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
 }
 
 server.listen(PORT, () => {
-    console.log(`Scraping server (v10 - Guaranteed Qualified Count) running on http://localhost:${PORT}`);
+    console.log(`Scraping server (v16 - Guaranteed Qualified Count) running on http://localhost:${PORT}`);
 });
