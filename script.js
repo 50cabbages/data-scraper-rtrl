@@ -117,11 +117,21 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('start_scrape', { category, location, postalCode, country, count, allowEmailOrPhone });
     }
 
-    function cleanDisplayValue(text) {
-        if (!text) return '';
-        // Aggressively remove all non-printable ASCII characters, zero-width spaces, newlines, and other common invisible/control Unicode chars
-        return text.replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF\n\r]/g, '').trim();
-    }
+function cleanDisplayValue(text) {
+    if (!text) return '';
+
+    // *** START OF UPDATED cleanDisplayValue BODY ***
+    // 1. Aggressively remove leading non-address-start characters.
+    let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
+
+    // 2. Replace all Unicode separator characters (all types of spaces) with a standard space
+    cleaned = cleaned.replace(/\p{Z}/gu, ' ');
+    // 3. Remove other non-printable control characters and the Byte Order Mark (BOM)
+    cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
+    // 4. Normalize multiple spaces to a single space, then trim any remaining leading/trailing spaces
+    return cleaned.replace(/\s+/g, ' ').trim();
+    // *** END OF UPDATED cleanDisplayValue BODY ***
+}
 
     function addTableRow(data) {
         const row = document.createElement('tr');

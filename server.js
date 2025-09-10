@@ -280,7 +280,18 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
     return page.evaluate((countryCode) => {
         const cleanText = (text) => {
             if (!text) return '';
-            return text.replace(/[\u0000-\u001F\u007F-\u009F\u00A0\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF\n\r]/g, '').trim();
+
+            // *** START OF UPDATED cleanText BODY ***
+            // 1. Aggressively remove leading non-address-start characters.
+            let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
+            
+            // 2. Replace all Unicode separator characters (all types of spaces) with a standard space
+            cleaned = cleaned.replace(/\p{Z}/gu, ' '); 
+            // 3. Remove other non-printable control characters and the Byte Order Mark (BOM)
+            cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
+            // 4. Normalize multiple spaces to a single space, then trim any remaining leading/trailing spaces
+            return cleaned.replace(/\s+/g, ' ').trim();
+            // *** END OF UPDATED cleanText BODY ***
         };
 
         const cleanPhoneNumber = (numberText, currentCountry) => {
@@ -314,21 +325,21 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
 async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
     const data = { Email: '', InstagramURL: '', FacebookURL: '', OwnerName: '' };
     try {
-        // Increase navigation timeout for website scraping
-        await page.goto(websiteUrl, { waitUntil: 'domcontentloaded', timeout: 90000 }); // 90 seconds
+        await page.goto(websiteUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
 
         const aboutPageKeywords = ['about', 'team', 'our-story', 'who-we-are', 'meet-the-team', 'contact', 'people'];
         const ownerTitleKeywords = ['owner', 'founder', 'director', 'co-founder', 'principal', 'manager', 'proprietor', 'ceo', 'president'];
         const genericWords = ['project', 'business', 'team', 'contact', 'support', 'admin', 'office', 'store', 'shop', 'sales', 'info', 'general', 'us', 'our', 'hello', 'get in touch', 'enquiries', 'email', 'phone', 'location', 'locations', 'company', 'services', 'trading', 'group', 'ltd', 'pty', 'inc', 'llc', 'customer', 'relations', 'marketing', 'welcome', 'home', 'privacy', 'terms', 'cookies', 'copyright', 'all rights reserved', 'headquarters', 'menu', 'products', 'delivery', 'online'];
         
         let foundAboutLink = false;
-        const allLinksOnCurrentPage = await page.$$eval('a', (links) => links.map(a => ({ href: links_a.href, text: links_a.innerText.toLowerCase() })));
+        // CORRECTED LINE 1: changed links_a to a
+        const allLinksOnCurrentPage = await page.$$eval('a', (links) => links.map(a => ({ href: a.href, text: a.innerText.toLowerCase() })));
         
         for (const keyword of aboutPageKeywords) {
             const aboutLink = allLinksOnCurrentPage.find(link => link.text.includes(keyword) && link.href.startsWith('http'));
             if (aboutLink && aboutLink.href) {
                 socket.emit('log', `   -> Found '${keyword}' page link, navigating to: ${aboutLink.href}...`);
-                await page.goto(aboutLink.href, { waitUntil: 'domcontentloaded', timeout: 60000 }); // 60 seconds for sub-navigation
+                await page.goto(aboutLink.href, { waitUntil: 'domcontentloaded', timeout: 60000 });
                 foundAboutLink = true;
                 break;
             }
@@ -364,7 +375,8 @@ async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
             if (data.OwnerName) break;
         }
 
-        const currentLinks = await page.$$eval('a', (links) => links.map(a => ({ href: links_a.href, text: links_a.innerText.toLowerCase() })));
+        // CORRECTED LINE 2: changed links_a to a
+        const currentLinks = await page.$$eval('a', (links) => links.map(a => ({ href: a.href, text: a.innerText.toLowerCase() })));
 
         data.InstagramURL = currentLinks.find(link => link.href.includes('instagram.com'))?.href || '';
         data.FacebookURL = currentLinks.find(link => link.href.includes('facebook.com'))?.href || '';
