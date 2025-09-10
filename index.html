@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Fonts for a modern look (Lato) -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <!-- SheetJS library for Excel generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -20,74 +22,96 @@
             </div>
         </header>
 
-        <div class="main-layout">
-            <aside id="sidebar-controls" class="card">
-                <h2><i class="fas fa-search-dollar"></i> 1. Define Your Search</h2>
-                <div class="form-group">
-                    <label for="category"><i class="fas fa-tag"></i> Business Category:</label>
-                    <input type="text" id="category" value="Butcher" placeholder="e.g., Butcher Shop, Bakery, Café">
+        <!-- NEW LAYOUT STRUCTURE START -->
+        <!-- Section 1: Define Your Search (Now a full-width row) -->
+        <aside id="sidebar-controls" class="card">
+            <h2><i class="fas fa-search-dollar"></i> 1. Define Your Search</h2>
+            
+            <div class="input-filters-wrapper">
+                <!-- Row 1: Search Inputs -->
+                <div class="input-fields-row">
+                    <div class="form-group">
+                        <label for="category"><i class="fas fa-tag"></i> Business Category:</label>
+                        <input type="text" id="category" value="Butcher" placeholder="e.g., Butcher Shop, Bakery, Café">
+                    </div>
+                    <div class="form-group">
+                        <label for="location"><i class="fas fa-map-marker-alt"></i> Suburb / Area:</label>
+                        <input type="text" id="location" value="Melbourne, Australia" placeholder="e.g., Melbourne CBD, Bondi">
+                    </div>
+                    <div class="form-group">
+                        <label for="count"><i class="fas fa-list-ol"></i> Number of Businesses to Find:</label>
+                        <input type="number" id="count" value="10" min="1" max="50" placeholder="Max 50">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="location"><i class="fas fa-map-marker-alt"></i> Suburb / Area:</label>
-                    <input type="text" id="location" value="Melbourne, Australia" placeholder="e.g., Melbourne CBD, Bondi">
-                </div>
-                <div class="form-group">
-                    <label for="count"><i class="fas fa-list-ol"></i> Number of Businesses to Find:</label>
-                    <input type="number" id="count" value="10" min="1" max="50" placeholder="Max 50">
-                </div>
-                <button id="startButton" class="btn btn-primary"><i class="fas fa-play-circle"></i> Start Research</button>
 
-                <div class="filter-group">
-                    <h3 class="filter-title"><i class="fas fa-filter"></i> Display Filters</h3> <!-- Renamed title -->
-                    <div class="form-group checkbox-group">
-                        <input type="checkbox" id="filterSocialMedia">
-                        <label for="filterSocialMedia"><i class="fab fa-instagram"></i> / <i class="fab fa-facebook"></i> Only with Social Media</label>
+                <!-- Row 2: Display Filters -->
+                <div class="filter-group-row">
+                    <h3 class="filter-title"><i class="fas fa-filter"></i> Display Filters</h3> 
+                    <div class="filter-checkboxes-row">
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="filterEmailOnly">
+                            <label for="filterEmailOnly"><i class="fas fa-envelope"></i> Only with Email</label>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="filterPhoneOnly">
+                            <label for="filterPhoneOnly"><i class="fas fa-phone"></i> Only with Phone</label>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <input type="checkbox" id="filterSocialMedia">
+                            <label for="filterSocialMedia"><i class="fab fa-instagram"></i> / <i class="fab fa-facebook"></i> Only with Social Media</label>
+                        </div>
                     </div>
-                    <!-- Removed the filterEmailPhone checkbox -->
                 </div>
-            </aside>
 
-            <main id="main-content">
-                <section class="progress-section card">
-                    <h2><i class="fas fa-spinner fa-spin"></i> 2. Research in Progress</h2>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="progressBar">0%</div>
-                    </div>
-                    <pre id="log" class="log-console"></pre>
-                </section>
-                
-                <section class="results-section card">
-                    <h2><i class="fas fa-table"></i> 3. Collected Data</h2>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Business</th>
-                                    <th>Category</th>
-                                    <th>Suburb</th>
-                                    <th>Address</th>
-                                    <th>Website</th>
-                                    <th>Owner</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Insta</th>
-                                    <th>FB</th>
-                                    <th>Maps</th>
-                                </tr>
-                            </thead>
-                            <tbody id="resultsTableBody">
-                                <!-- JS will populate this -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="download-buttons-group">
-                        <button id="downloadFullExcelButton" class="btn btn-success" disabled><i class="fas fa-file-excel"></i> Download All Data (.xlsx)</button>
-                        <button id="downloadNotifyreCSVButton" class="btn btn-secondary" disabled><i class="fas fa-sms"></i> Generate for Notifyre (SMS)</button>
-                        <button id="downloadGoogleWorkspaceCSVButton" class="btn btn-secondary" disabled><i class="fas fa-envelope"></i> Generate for Google Workspace (Email)</button>
-                    </div>
-                </section>
-            </main>
+                <!-- Row 3: Start Button -->
+                <div class="start-button-row">
+                    <button id="startButton" class="btn btn-primary"><i class="fas fa-play-circle"></i> Start Research</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sections 2 & 3: Research in Progress and Collected Data (Each full width, stacked) -->
+         <div class="main-content-area"> 
+            <section class="progress-section card" id="progress-section"> <!-- ADDED ID HERE -->
+                <h2><i class="fas fa-spinner fa-spin"></i> 2. Research in Progress</h2>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+                <pre id="log" class="log-console"></pre>
+            </section>
+            
+            <section class="results-section card" id="results-section"> <!-- ADDED ID HERE -->
+                <h2><i class="fas fa-table"></i> 3. Collected Data</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Business</th>
+                                <th>Category</th>
+                                <th>Suburb</th>
+                                <th>Address</th>
+                                <th>Website</th>
+                                <th>Owner</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Insta</th>
+                                <th>FB</th>
+                                <th>Maps</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- JS will populate this -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="download-buttons-group">
+                    <button id="downloadFullExcelButton" class="btn btn-success" disabled><i class="fas fa-file-excel"></i> Download All Data (.xlsx)</button>
+                    <button id="downloadNotifyreCSVButton" class="btn btn-secondary" disabled><i class="fas fa-sms"></i> Generate for Notifyre (SMS)</button>
+                    <button id="downloadGoogleWorkspaceCSVButton" class="btn btn-secondary" disabled><i class="fas fa-envelope"></i> Generate for Google Workspace (Email)</button>
+                </div>
+            </section>
         </div>
+        <!-- NEW LAYOUT STRUCTURE END -->
 
         <footer>
             <p>&copy; <span id="currentYear"></span> RTRL Property. All rights reserved.</p>
