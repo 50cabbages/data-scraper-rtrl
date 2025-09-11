@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadNotifyreCSVButton = document.getElementById('downloadNotifyreCSVButton');
     const downloadGoogleWorkspaceCSVButton = document.getElementById('downloadGoogleWorkspaceCSVButton');
     
-    // Updated category inputs
     const primaryCategorySelect = document.getElementById('primaryCategorySelect');
     const subCategoryGroup = document.getElementById('subCategoryGroup');
     const subCategorySelect = document.getElementById('subCategorySelect');
@@ -31,6 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let allCollectedData = [];
     let displayedData = [];
 
+    // Define Google Maps service variables at the top of the DOMContentLoaded scope
+    let service; // Google Places AutocompleteService
+    let geocoder; // Google Maps Geocoder
+    let locationAutocompleteTimer;
+    let postalCodeAutocompleteTimer;
+
     document.getElementById('currentYear').textContent = new Date().getFullYear();
     researchStatusIcon.classList.add('fa-hourglass-start');
 
@@ -51,19 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
         "Electronics store": []
     };
 
+    // --- UPDATED: Country values to ISO 3166-1 Alpha-2 codes ---
     const countries = [
-        { value: "Australia", text: "Australia" },
-        { value: "New Zealand", text: "New Zealand" },
-        { value: "United States", text: "USA" },
-        { value: "United Kingdom", text: "UK" },
-        { value: "Canada", text: "Canada" },
-        { value: "Germany", text: "Germany" },
-        { value: "France", text: "France" },
-        { value: "Spain", text: "Spain" },
-        { value: "Italy", text: "Italy" },
-        { value: "Japan", text: "Japan" },
-        { value: "Singapore", text: "Singapore" },
-        { value: "Hong Kong", text: "Hong Kong" }
+        { value: "AU", text: "Australia" },
+        { value: "NZ", text: "New Zealand" },
+        { value: "US", text: "United States" },
+        { value: "GB", text: "United Kingdom" },
+        { value: "CA", text: "Canada" },
+        { value: "DE", text: "Germany" },
+        { value: "FR", text: "France" },
+        { value: "ES", text: "Spain" },
+        { value: "IT", text: "Italy" },
+        { value: "JP", text: "Japan" },
+        { value: "SG", text: "Singapore" },
+        { value: "HK", text: "Hong Kong" }
     ];
 
     function populatePrimaryCategories() {
@@ -82,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         primaryCategorySelect.value = "Butcher";
-        handleCategoryChange(primaryCategorySelect.value); // Trigger initial display logic for sub/custom
+        handleCategoryChange(primaryCategorySelect.value);
     }
 
     function populateSubCategories(selectedCategory) {
@@ -106,7 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // FIX: Corrected logic for custom category visibility
     function handleCategoryChange(selectedCategory) {
         if (selectedCategory === "Other/Custom") {
             subCategoryGroup.style.display = 'none';
@@ -116,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             customCategoryGroup.style.display = 'none';
             customCategoryInput.value = '';
-            populateSubCategories(selectedCategory); // Populate subcategories for non-custom primary categories
+            populateSubCategories(selectedCategory);
         }
     }
 
@@ -124,7 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
         handleCategoryChange(event.target.value);
     });
 
-    // Initial population on page load
     populatePrimaryCategories();
 
     function renderSuggestions(inputElement, suggestionsContainer, items, displayKey, valueKey, onSelectCallback) {
@@ -150,26 +154,25 @@ document.addEventListener('DOMContentLoaded', () => {
         suggestionsContainer.style.display = 'block';
     }
 
-    // NEW: Country Autocomplete
     let countryAutocompleteTimer;
     countryInput.addEventListener('input', () => {
         clearTimeout(countryAutocompleteTimer);
         const query = countryInput.value.toLowerCase();
-        if (query.length < 1) { // Show all on empty or short query
-            countrySuggestionsEl.style.display = 'none'; // Hide if input is cleared
+        if (query.length < 1) {
+            countrySuggestionsEl.style.display = 'none';
             return;
         }
         countryAutocompleteTimer = setTimeout(() => {
             const filteredCountries = countries.filter(c => c.text.toLowerCase().includes(query));
             renderSuggestions(countryInput, countrySuggestionsEl, filteredCountries, 'text', 'value', (selectedCountry) => {
-                countryInput.value = selectedCountry.text;
+                countryInput.value = selectedCountry.text; // Display full text, value will be ISO code internally
             });
         }, 300);
     });
 
     countryInput.addEventListener('focus', () => {
-        // Show all countries when focused and input is empty
         if (countryInput.value.trim() === '') {
+            // Show all countries when focused and input is empty
             renderSuggestions(countryInput, countrySuggestionsEl, countries, 'text', 'value', (selectedCountry) => {
                 countryInput.value = selectedCountry.text;
             });
@@ -179,8 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // Hide suggestions when clicking outside
     document.addEventListener('click', (event) => {
         if (!locationInput.contains(event.target) && !locationSuggestionsEl.contains(event.target)) {
             locationSuggestionsEl.style.display = 'none';
@@ -193,22 +194,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    let service;
-    let locationAutocompleteTimer;
-    let postalCodeAutocompleteTimer;
-
-    // initMap is now called by the Google Maps script due to `callback=initMap`
-    window.initMap = () => {
+    // --- Function to initialize Google Maps services (called by window.initMap in <head>) ---
+    window.rtrlApp = window.rtrlApp || {}; // Ensure window.rtrlApp exists
+    window.rtrlApp.initializeMapServices = () => {
         if (window.google && google.maps && google.maps.places) {
             service = new google.maps.places.AutocompleteService();
+            geocoder = new google.maps.Geocoder();
             console.log("Google Places Autocomplete Service initialized.");
-            // Optionally trigger a search on initial value if present
+            // Trigger initial search if values are present and focus handlers might not have fired yet
             if (locationInput.value) locationInput.dispatchEvent(new Event('input'));
             if (postalCodeInput.value) postalCodeInput.dispatchEvent(new Event('input'));
         } else {
             console.warn("Google Maps Places API not fully loaded. Autocomplete may not function.");
         }
     };
+
+    // Check if Google Maps API was already loaded before this script fully executed (due to 'async defer')
+    if (window.google && google.maps && google.maps.places && !service) {
+        console.log("Google Maps API already loaded (before script.js fully executed). Initializing map services now.");
+        window.rtrlApp.initializeMapServices();
+    }
+    // --- END NEW MAPS INITIALIZATION ---
 
     function fetchPlaceSuggestions(inputElement, suggestionsContainer, types, onSelectCallback) {
         const query = inputElement.value.trim();
@@ -217,10 +223,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Get the ISO country code from the selected country input
+        const selectedCountryText = countryInput.value;
+        const countryIsoCode = countries.find(c => c.text === selectedCountryText)?.value;
+
+        const componentRestrictions = countryIsoCode ? { country: countryIsoCode } : {};
+
         service.getPlacePredictions({
             input: query,
             types: types,
-            componentRestrictions: countryInput.value ? { country: countries.find(c => c.text === countryInput.value)?.value.toLowerCase() } : {}
+            componentRestrictions: componentRestrictions // Use the ISO country code here
         }, (predictions, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
                 const items = predictions.map(p => ({
@@ -228,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     place_id: p.place_id
                 }));
                 renderSuggestions(inputElement, suggestionsContainer, items, 'description', 'place_id', async (selectedItem) => {
+                    // Update input value on selection, then call the specific callback
                     inputElement.value = selectedItem.description;
                     onSelectCallback(selectedItem);
                 });
@@ -239,7 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function getPlaceDetails(placeId) {
-        const geocoder = new google.maps.Geocoder();
+        if (!geocoder) {
+            console.error("Geocoder service not initialized.");
+            return Promise.reject(new Error("Geocoder service not available."));
+        }
         return new Promise((resolve, reject) => {
             geocoder.geocode({ placeId: placeId }, (results, status) => {
                 if (status === google.maps.GeocoderStatus.OK && results[0]) {
@@ -252,20 +268,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    locationInput.addEventListener('input', () => {
+locationInput.addEventListener('input', () => {
         clearTimeout(locationAutocompleteTimer);
         locationAutocompleteTimer = setTimeout(() => {
-            fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['(cities)', 'regions', 'locality', 'sublocality'], (selectedItem) => {
+            // Option 1: Focus on cities AND localities/suburbs
+            // This is generally the most useful for a "Suburb/Area" input.
+            // Note: '(cities)' cannot be mixed. If you want cities AND suburbs,
+            // you should generally use 'geocode' or combine requests.
+            // For Autocomplete, we can try to get broader administrative areas.
+            fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['geocode'], (selectedItem) => {
                 locationInput.value = selectedItem.description;
             });
+
+            // Alternative (if 'geocode' is too broad):
+            // If you strictly want *only* cities or *only* regions, you'd do:
+            // fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['(cities)'], (selectedItem) => { ... });
+            // OR
+            // fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['(regions)'], (selectedItem) => { ... });
+
         }, 300);
     });
-    // Trigger on focus as well
     locationInput.addEventListener('focus', () => {
         if (locationInput.value.trim() === '') {
-            // Do nothing, let user type
+            // Do nothing, let user type to get suggestions
         } else {
-            locationInput.dispatchEvent(new Event('input'));
+            locationInput.dispatchEvent(new Event('input')); // Re-trigger input to show filtered suggestions
         }
     });
 
@@ -279,16 +306,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     let localityName = '';
                     if (details && details.address_components) {
                         const postalCodeComp = details.address_components.find(comp => comp.types.includes('postal_code'));
-                        const localityComp = details.address_components.find(comp => comp.types.includes('locality'));
+                        // Look for locality (city/town) or sublocality (suburb/neighborhood)
+                        const localityComp = details.address_components.find(comp => comp.types.includes('locality')) ||
+                                             details.address_components.find(comp => comp.types.includes('sublocality_level_1'));
                         
                         if (postalCodeComp) postalCode = postalCodeComp.long_name;
                         if (localityComp) localityName = localityComp.long_name;
                     }
                     
+                    // --- Implemented: Postal code display format '3000 - Melbourne' ---
                     if (postalCode && localityName) {
                         postalCodeInput.value = `${postalCode} - ${localityName}`;
+                    } else if (postalCode) {
+                        postalCodeInput.value = postalCode; // Fallback to just postal code if no locality
                     } else {
-                        postalCodeInput.value = selectedItem.description;
+                        postalCodeInput.value = selectedItem.description; // Fallback to original description
                     }
                 } catch (error) {
                     console.error("Error fetching postal code details:", error);
@@ -297,12 +329,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }, 300);
     });
-    // Trigger on focus as well
     postalCodeInput.addEventListener('focus', () => {
         if (postalCodeInput.value.trim() === '') {
-            // Do nothing, let user type
+            // Do nothing, let user type to get suggestions
         } else {
-            postalCodeInput.dispatchEvent(new Event('input'));
+            postalCodeInput.dispatchEvent(new Event('input')); // Re-trigger input to show filtered suggestions
         }
     });
 
@@ -349,7 +380,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 OwnerName: '',
                 ...business,
                 Category: finalCategoryForDisplay, 
-                SuburbArea: locationInput.value.split(',')[0].trim(), 
+                // Ensure only the area part is used if postal code format is "3000 - Melbourne"
+                SuburbArea: locationInput.value.includes('-') ? locationInput.value.split('-')[1].trim() : locationInput.value.trim(), 
                 LastVerifiedDate: new Date().toISOString().split('T')[0]
             };
             allCollectedData.push(fullBusinessData);
@@ -403,9 +435,14 @@ document.addEventListener('DOMContentLoaded', () => {
             categorySearchTerm = primaryCategory;
         }
 
-        const location = locationInput.value.split('-')[0].trim();
-        const postalCode = postalCodeInput.value.split('-')[0].trim();
-        const country = countryInput.value;
+        // --- Keep the full value for location/postalCode for server search ---
+        const location = locationInput.value.trim();
+        const postalCode = postalCodeInput.value.trim();
+
+        const country = countryInput.value; // This is the 'text' (e.g., "Australia")
+        // Get the ISO code for the server request if needed, though the server usually handles country names fine for Puppeteer searches.
+        // For Google Places API calls on the front-end, we use the ISO code.
+
         const count = parseInt(countInput.value, 10);
         const allowEmailOrPhone = filterEmailOrPhoneCheckbox.checked;
 

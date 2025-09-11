@@ -139,7 +139,7 @@ io.on('connection', (socket) => {
                     break;
                 }
 
-                socket.emit('log', `\nLEVEL 1, Maps Collection Attempt ${mapsCollectionAttempts}/${MAX_MAPS_COLLECTION_ATTEMTS}: Collecting up to ${finalRawUrlsTargetThisAttempt} *new* unique Google Maps URLs... (Total unique discovered so far: ${processedUrlSet.size})`);
+                socket.emit('log', `\nLEVEL 1, Maps Collection Attempt ${mapsCollectionAttempts}/${MAX_MAPS_COLLECTION_ATTEMPTS}: Collecting up to ${finalRawUrlsTargetThisAttempt} *new* unique Google Maps URLs... (Total unique discovered so far: ${processedUrlSet.size})`);
                 const newlyDiscoveredUrls = await collectGoogleMapsUrlsContinuously(page, searchQuery, socket, finalRawUrlsTargetThisAttempt, processedUrlSet);
                 
                 if (newlyDiscoveredUrls.length === 0) {

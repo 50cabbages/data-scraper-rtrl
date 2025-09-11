@@ -81,16 +81,16 @@ header p {
     margin: 0 auto;
 }
 
-/* Main Layout: Two Columns */
+/* Main Layout: Two Columns - BACK TO ORIGINAL FLEX-WRAP: NOWRAP FOR DESKTOP, WITH MIN-WIDTHS */
 .main-layout {
     display: flex;
     gap: 35px;
     flex-grow: 1;
-    flex-wrap: nowrap;
+    flex-wrap: nowrap; /* CRITICAL: Keep nowrap for the side-by-side desktop design */
 }
 
 #sidebar-controls {
-    flex: 0 0 350px;
+    flex: 0 0 350px; /* Sidebar is fixed width on desktop */
     background-color: var(--rtrl-blue-light);
     padding: 30px;
     display: flex;
@@ -99,7 +99,7 @@ header p {
 
 #main-content {
     flex-grow: 1;
-    min-width: 0;
+    min-width: 650px; /* ADDED: This is the desktop 'floor' for main-content. If (350+35+650) > viewport, it will overflow. */
     display: flex;
     flex-direction: column;
     gap: 35px;
@@ -215,11 +215,6 @@ select { /* Added select here */
     -webkit-appearance: none; /* For custom select arrow */
     -moz-appearance: none;
     appearance: none;
-    /* Remove background-image for country select, since it's now an input */
-    /* background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23003366%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13%205.4L147.2%20202.7%2018.6%2074.8c-6.7-6.7-17.6-6.7-24.3%200-6.7%206.7-6.7%2017.6%200%2024.3l135%20135c6.7%206.7%2017.6%206.7%2024.3%200l135-135a17.6%2017.6%200%200%200%200-24.3c-6.7-6.7-17.5-6.7-24.3%200z%22%2F%3E%3C%2Fsvg%3E');
-    background-repeat: no-repeat;
-    background-position: right 18px center;
-    background-size: 12px; */
 }
 
 
@@ -418,7 +413,7 @@ select:focus { /* Added select here */
 .table-container {
     flex-grow: 1;
     overflow-y: auto;
-    overflow-x: auto;
+    overflow-x: auto; /* Handles horizontal scrolling for wide tables */
     border: 1px solid var(--rtrl-border-color);
     border-radius: 8px;
     margin-bottom: 0;
@@ -427,7 +422,7 @@ select:focus { /* Added select here */
 
 table {
     width: 100%;
-    min-width: 1100px;
+    min-width: 1100px; /* Kept for initial minimum width before scrollbar appears */
     border-collapse: collapse;
 }
 
@@ -437,20 +432,21 @@ th, td {
     border-bottom: 1px solid var(--rtrl-border-color);
     font-size: 0.9em;
     vertical-align: middle;
-    word-break: break-word;
+    word-break: break-word; /* Allows long words to break */
 }
 
-th:nth-child(1), td:nth-child(1) { min-width: 160px; }
-th:nth-child(2), td:nth-child(2) { min-width: 120px; }
-th:nth-child(3), td:nth-child(3) { min-width: 90px; }
-th:nth-child(4), td:nth-child(4) { min-width: 180px; }
-th:nth-child(5), td:nth-child(5) { min-width: 120px; }
-th:nth-child(6), td:nth-child(6) { min-width: 100px; }
-th:nth-child(7), td:nth-child(7) { min-width: 130px; }
-th:nth-child(8), td:nth-child(8) { min-width: 100px; }
-th:nth-child(9), td:nth-child(9) { min-width: 80px; }
-th:nth-child(10), td:nth-child(10) { min-width: 80px; }
-th:nth-child(11), td:nth-child(11) { min-width: 80px; }
+/* Default desktop column widths */
+th:nth-child(1), td:nth-child(1) { min-width: 160px; } /* Business */
+th:nth-child(2), td:nth-child(2) { min-width: 120px; } /* Category */
+th:nth-child(3), td:nth-child(3) { min-width: 90px; }  /* Suburb */
+th:nth-child(4), td:nth-child(4) { min-width: 180px; } /* Address */
+th:nth-child(5), td:nth-child(5) { min-width: 120px; } /* Website */
+th:nth-child(6), td:nth-child(6) { min-width: 100px; } /* Owner */
+th:nth-child(7), td:nth-child(7) { min-width: 130px; } /* Email */
+th:nth-child(8), td:nth-child(8) { min-width: 100px; } /* Phone */
+th:nth-child(9), td:nth-child(9) { min-width: 80px; }  /* Insta */
+th:nth-child(10), td:nth-child(10) { min-width: 80px; } /* FB */
+th:nth-child(11), td:nth-child(11) { min-width: 80px; } /* Maps */
 
 
 thead th {
@@ -495,28 +491,75 @@ footer {
 }
 
 /* Responsive Design */
-@media (max-width: 992px) {
+/* Trigger stacked layout when overall width is too small for desired side-by-side */
+@media (max-width: 1035px) { /* This breakpoint now specifically targets where side-by-side becomes 'mashed up' */
     .main-layout {
-        flex-direction: column;
-        gap: 25px;
+        flex-direction: column; /* Explicitly stack columns at this breakpoint */
+        gap: 25px; /* Adjust gap when stacked */
+        flex-wrap: wrap; /* Allows the flex items to wrap within the column direction */
     }
     #sidebar-controls {
-        flex: auto;
-        width: 100%;
+        flex: auto; /* Allow sidebar to take full width */
+        width: 100%; /* Explicitly set width to 100% when stacked */
+        max-width: 100%; /* Ensure it doesn't exceed 100% */
     }
-    .btn {
-        width: 100%;
+    #main-content {
+        flex-grow: 1;
+        width: 100%; /* Explicitly set width to 100% when stacked */
+        min-width: unset; /* Allow it to shrink as needed in column view */
     }
+    .app-container {
+        margin: 15px auto;
+        padding: 25px;
+    }
+    header h1 {
+        font-size: 2.2em;
+    }
+    header p {
+        font-size: 1.05em;
+    }
+    h2 {
+        font-size: 1.6em;
+    }
+    .filter-group .filter-title {
+        font-size: 1.3em;
+    }
+    label {
+        font-size: 1em;
+    }
+    input[type="text"], input[type="number"], select {
+        padding: 13px 17px;
+        font-size: 1em;
+    }
+    .log-console {
+        height: 200px;
+        font-size: 0.86em;
+    }
+
+    /* Adjust table column min-widths for narrower desktop/larger tablet screens */
+    th, td {
+        padding: 14px;
+        font-size: 0.85em;
+    }
+    th:nth-child(1), td:nth-child(1) { min-width: 140px; } /* Business */
+    th:nth-child(2), td:nth-child(2) { min-width: 100px; } /* Category */
+    th:nth-child(3), td:nth-child(3) { min-width: 80px; }  /* Suburb */
+    th:nth-child(4), td:nth-child(4) { min-width: 160px; } /* Address */
+    th:nth-child(5), td:nth-child(5) { min-width: 110px; } /* Website */
+    th:nth-child(6), td:nth-child(6) { min-width: 90px; }  /* Owner */
+    th:nth-child(7), td:nth-child(7) { min-width: 110px; } /* Email */
+    th:nth-child(8), td:nth-child(8) { min-width: 90px; }  /* Phone */
+    th:nth-child(9), td:nth-child(9) { min-width: 70px; }  /* Insta */
+    th:nth-child(10), td:nth-child(10) { min-width: 70px; } /* FB */
+    th:nth-child(11), td:nth-child(11) { min-width: 70px; } /* Maps */
+
+    /* Ensure download buttons stack */
     .download-buttons-group {
         flex-direction: column;
     }
     .download-buttons-group .btn {
         width: 100%;
         align-self: center;
-    }
-    .app-container {
-        margin: 15px auto;
-        padding: 25px;
     }
 }
 

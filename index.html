@@ -7,12 +7,25 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!--
-        CRITICAL: Ensure this line is EXACTLY as shown.
-        No extra spaces, no changes to %%GOOGLE_MAPS_API_KEY%%
-        The &amp; in the browser console is a display artifact of HTML parsing,
-        but in the raw file it MUST be '&'.
-    -->
+    
+    <!-- IMPORTANT: Define window.initMap here to ensure it's available when Google Maps API loads -->
+    <script>
+        // Expose a global object for the main script to attach to
+        window.rtrlApp = window.rtrlApp || {};
+
+        // This function is called by the Google Maps API once it has loaded.
+        window.initMap = function() {
+            // Check if our main script.js has loaded and exposed its initialization function.
+            // If it has, call it. Otherwise, script.js will check for google.maps.
+            if (typeof window.rtrlApp.initializeMapServices === 'function') {
+                window.rtrlApp.initializeMapServices();
+            } else {
+                console.log("initMap called by Google Maps, but script.js not fully ready. Deferring map services initialization within script.js.");
+            }
+        };
+    </script>
+
+
     <script src="https://maps.googleapis.com/maps/api/js?key=%%GOOGLE_MAPS_API_KEY%%&libraries=places&callback=initMap" async defer></script>
 </head>
 <body>
