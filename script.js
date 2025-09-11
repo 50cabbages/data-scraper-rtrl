@@ -5,10 +5,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadFullExcelButton = document.getElementById('downloadFullExcelButton');
     const downloadNotifyreCSVButton = document.getElementById('downloadNotifyreCSVButton');
     const downloadGoogleWorkspaceCSVButton = document.getElementById('downloadGoogleWorkspaceCSVButton');
-    const categoryInput = document.getElementById('category');
+    
+    // Updated category inputs
+    const primaryCategorySelect = document.getElementById('primaryCategorySelect');
+    const subCategoryGroup = document.getElementById('subCategoryGroup');
+    const subCategorySelect = document.getElementById('subCategorySelect');
+    const customCategoryGroup = document.getElementById('customCategoryGroup'); // New custom category group
+    const customCategoryInput = document.getElementById('customCategoryInput'); // New custom category input
+
     const locationInput = document.getElementById('location');
     const postalCodeInput = document.getElementById('postalCode');
-    const countryInput = document.getElementById('country');
+    const countrySelect = document.getElementById('countrySelect'); // Changed to select dropdown
     const countInput = document.getElementById('count');
     const progressBar = document.getElementById('progressBar');
     const logEl = document.getElementById('log');
@@ -22,6 +29,116 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('currentYear').textContent = new Date().getFullYear();
     researchStatusIcon.classList.add('fa-hourglass-start');
+
+    // --- Curated Categories List (reflecting Google Business Profile categories) ---
+    // The empty string "" in sub-categories represents an "Any/Select" option for sub-categories
+    const categories = {
+        "Select Category": [], // Default empty option
+        "Other/Custom": [], // New option for custom input
+        "Butcher": [],
+        "Bakery": [],
+        "Café": [],
+        "Restaurant": ["", "Thai restaurant", "Italian restaurant", "Japanese restaurant", "Indian restaurant", "Chinese restaurant", "Mexican restaurant", "Fast food restaurant"],
+        "Hair salon": [],
+        "Florist": [],
+        "Fashion designer": ["", "Clothing store", "Boutique", "Men's clothing store", "Women's clothing store", "Children's clothing store"],
+        "Grocer": ["", "Organic grocer", "Asian grocer", "Fruit and vegetable store"],
+        "Pharmacy": [],
+        "Book store": [],
+        "Jewellery store": [],
+        "Electronics store": []
+    };
+
+    // --- Curated Countries List ---
+    const countries = [
+        { value: "", text: "Select Country" },
+        { value: "Australia", text: "Australia" },
+        { value: "New Zealand", text: "New Zealand" },
+        { value: "United States", text: "USA" },
+        { value: "United Kingdom", text: "UK" },
+        { value: "Canada", text: "Canada" },
+        { value: "Germany", text: "Germany" }
+    ];
+
+    // Populate primary category dropdown
+    function populatePrimaryCategories() {
+        primaryCategorySelect.innerHTML = ''; // Clear existing options
+        
+        // Add default "Select Business Category" option
+        const defaultCategoryOption = document.createElement('option');
+        defaultCategoryOption.value = ""; // Empty value indicates no selection
+        defaultCategoryOption.textContent = "Select Business Category";
+        primaryCategorySelect.appendChild(defaultCategoryOption);
+
+        for (const categoryName in categories) {
+            if (categoryName !== "Select Category") { // Skip the internal default placeholder
+                const option = document.createElement('option');
+                option.value = categoryName;
+                option.textContent = categoryName;
+                primaryCategorySelect.appendChild(option);
+            }
+        }
+        primaryCategorySelect.value = "Butcher"; // Set "Butcher" as the default selected value upon load
+        handleCategoryChange(primaryCategorySelect.value); // Trigger initial display logic
+    }
+
+    // Populate sub-category dropdown based on primary selection
+    function populateSubCategories(selectedCategory) {
+        subCategorySelect.innerHTML = ''; // Clear previous options
+        const subCategories = categories[selectedCategory];
+
+        if (subCategories && subCategories.length > 0 && selectedCategory !== "" && selectedCategory !== "Other/Custom") {
+            subCategoryGroup.style.display = 'block'; // Show sub-category dropdown
+            subCategories.forEach(subCat => {
+                const option = document.createElement('option');
+                option.value = subCat;
+                option.textContent = subCat === "" ? "Select Sub-Category (Optional)" : subCat;
+                subCategorySelect.appendChild(option);
+            });
+            // If the first option is empty (like "Select Sub-Category"), make it selected by default
+            if (subCategories[0] === "") {
+                subCategorySelect.value = "";
+            }
+        } else {
+            subCategoryGroup.style.display = 'none'; // Hide if no sub-categories or special category
+            subCategorySelect.value = ''; // Clear its value
+        }
+    }
+
+    // Handle category change logic (including custom input visibility)
+    function handleCategoryChange(selectedCategory) {
+        if (selectedCategory === "Other/Custom") {
+            subCategoryGroup.style.display = 'none';
+            subCategorySelect.value = '';
+            customCategoryGroup.style.display = 'block';
+            customCategoryInput.focus(); // Focus on the new custom input field
+        } else {
+            customCategoryGroup.style.display = 'none';
+            customCategoryInput.value = ''; // Clear custom input when not in use
+            populateSubCategories(selectedCategory);
+        }
+    }
+
+    // Populate country dropdown
+    function populateCountries() {
+        countrySelect.innerHTML = '';
+        countries.forEach(country => {
+            const option = document.createElement('option');
+            option.value = country.value;
+            option.textContent = country.text;
+            countrySelect.appendChild(option);
+        });
+        countrySelect.value = "Australia"; // Set default selected value
+    }
+
+    // Event listener for primary category change
+    primaryCategorySelect.addEventListener('change', (event) => {
+        handleCategoryChange(event.target.value);
+    });
+
+    // Initial population on page load
+    populatePrimaryCategories();
+    populateCountries();
 
     socket.on('connect', () => {
         logMessage('Connected to the real-time server!', 'success');
@@ -52,10 +169,19 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsTableBody.innerHTML = '';
         
         businesses.forEach((business) => {
+            let finalCategoryForDisplay = "";
+            if (primaryCategorySelect.value === "Other/Custom") {
+                finalCategoryForDisplay = customCategoryInput.value;
+            } else if (subCategorySelect.value && subCategorySelect.value !== "") {
+                finalCategoryForDisplay = subCategorySelect.value;
+            } else {
+                finalCategoryForDisplay = primaryCategorySelect.value;
+            }
+
             const fullBusinessData = {
                 OwnerName: '',
                 ...business,
-                Category: categoryInput.value.replace(/s$/, ''),
+                Category: finalCategoryForDisplay, 
                 SuburbArea: locationInput.value.split(',')[0].trim(),
                 LastVerifiedDate: new Date().toISOString().split('T')[0]
             };
@@ -97,15 +223,28 @@ document.addEventListener('DOMContentLoaded', () => {
         researchStatusIcon.classList.remove('fa-hourglass-start', 'fa-check-circle', 'fa-exclamation-triangle');
         researchStatusIcon.classList.add('fa-spin', 'fa-spinner');
 
-        const category = categoryInput.value;
+        const primaryCategory = primaryCategorySelect.value;
+        const subCategory = subCategorySelect.value;
+        const customCategory = customCategoryInput.value;
+        
+        // Determine the actual search term to send to the server
+        let categorySearchTerm;
+        if (primaryCategory === "Other/Custom") {
+            categorySearchTerm = customCategory;
+        } else if (subCategory && subCategory !== "") {
+            categorySearchTerm = subCategory;
+        } else {
+            categorySearchTerm = primaryCategory;
+        }
+
         const location = locationInput.value;
         const postalCode = postalCodeInput.value;
-        const country = countryInput.value;
+        const country = countrySelect.value; // Get value from new country dropdown
         const count = parseInt(countInput.value, 10);
         const allowEmailOrPhone = filterEmailOrPhoneCheckbox.checked;
 
-        if (!category || (!location && !postalCode) || !country || count < 1 || count > 50) {
-            logMessage(`Input Error: Please provide a category, at least a Suburb/Area OR Postal Code, a Country, and a number between 1-50 for count.`, 'error');
+        if (!categorySearchTerm || categorySearchTerm === "" || primaryCategory === "" || (!location && !postalCode) || country === "" || count < 1 || count > 50) {
+            logMessage(`Input Error: Please select/enter a valid category, provide at least a Suburb/Area OR Postal Code, select a Country, and enter a number between 1-50 for 'Number of Businesses to Find'.`, 'error');
             setUiState(false);
             progressBar.classList.remove('pulsing');
             researchStatusIcon.classList.remove('fa-spin', 'fa-spinner');
@@ -114,13 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         logMessage(`Sending request to server to start scraping for ${count} qualified prospects...`, 'info');
-        socket.emit('start_scrape', { category, location, postalCode, country, count, allowEmailOrPhone });
+        socket.emit('start_scrape', { category: categorySearchTerm, location, postalCode, country, count, allowEmailOrPhone });
     }
 
 function cleanDisplayValue(text) {
     if (!text) return '';
 
-    // *** START OF UPDATED cleanDisplayValue BODY ***
     // 1. Aggressively remove leading non-address-start characters.
     let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
 
@@ -130,7 +268,6 @@ function cleanDisplayValue(text) {
     cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
     // 4. Normalize multiple spaces to a single space, then trim any remaining leading/trailing spaces
     return cleaned.replace(/\s+/g, ' ').trim();
-    // *** END OF UPDATED cleanDisplayValue BODY ***
 }
 
     function addTableRow(data) {
@@ -155,10 +292,12 @@ function cleanDisplayValue(text) {
     
     function setUiState(isBusy) {
         startButton.disabled = isBusy;
-        categoryInput.disabled = isBusy;
+        primaryCategorySelect.disabled = isBusy;
+        subCategorySelect.disabled = isBusy;
+        customCategoryInput.disabled = isBusy; // Disable custom input
         locationInput.disabled = isBusy;
         postalCodeInput.disabled = isBusy;
-        countryInput.disabled = isBusy;
+        countrySelect.disabled = isBusy; // Disable country dropdown
         countInput.disabled = isBusy;
         filterEmailOrPhoneCheckbox.disabled = isBusy;
         setDownloadButtonStates(isBusy);

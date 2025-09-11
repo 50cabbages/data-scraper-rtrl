@@ -22,8 +22,16 @@
             <aside id="sidebar-controls" class="card">
                 <h2><i class="fas fa-search-dollar"></i> 1. Define Your Search</h2>
                 <div class="form-group">
-                    <label for="category"><i class="fas fa-tag"></i> Business Category:</label>
-                    <input type="text" id="category" value="Butcher" placeholder="e.g., Butcher Shop, Bakery, Café">
+                    <label for="primaryCategorySelect"><i class="fas fa-tag"></i> Business Category:</label>
+                    <select id="primaryCategorySelect"></select>
+                </div>
+                <div class="form-group" id="subCategoryGroup" style="display: none;">
+                    <label for="subCategorySelect"><i class="fas fa-tags"></i> Sub-Category (Optional):</label>
+                    <select id="subCategorySelect"></select>
+                </div>
+                <div class="form-group" id="customCategoryGroup" style="display: none;">
+                    <label for="customCategoryInput"><i class="fas fa-feather-alt"></i> Custom Category:</label>
+                    <input type="text" id="customCategoryInput" placeholder="e.g., Artisan Cheese Shop">
                 </div>
                 <div class="form-group">
                     <label for="location"><i class="fas fa-map-marker-alt"></i> Suburb / Area (Optional):</label>
@@ -34,8 +42,8 @@
                     <input type="text" id="postalCode" value="3000" placeholder="e.g., 3000, 2026">
                 </div>
                 <div class="form-group">
-                    <label for="country"><i class="fas fa-globe-asia"></i> Country:</label>
-                    <input type="text" id="country" value="Australia" placeholder="e.g., Australia, USA">
+                    <label for="countrySelect"><i class="fas fa-globe-asia"></i> Country:</label>
+                    <select id="countrySelect"></select>
                 </div>
                 <div class="form-group">
                     <label for="count"><i class="fas fa-list-ol"></i> Number of Businesses to Find:</label>

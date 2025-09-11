@@ -47,7 +47,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const searchQuery = `${category} in ${areaQuery}, ${country}`;
+        const searchQuery = `${category} in ${areaQuery}, ${country}`; // Category now includes sub-category if chosen
         socket.emit('log', `[Server] Starting search for ${count} *qualified* "${category}" prospects in "${areaQuery}, ${country}"`);
         if (allowEmailOrPhone) {
             socket.emit('log', `[Server] Qualification: Requiring at least an email OR a phone number.`);
@@ -281,7 +281,6 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
         const cleanText = (text) => {
             if (!text) return '';
 
-            // *** START OF UPDATED cleanText BODY ***
             // 1. Aggressively remove leading non-address-start characters.
             let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
             
@@ -291,25 +290,32 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
             cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
             // 4. Normalize multiple spaces to a single space, then trim any remaining leading/trailing spaces
             return cleaned.replace(/\s+/g, ' ').trim();
-            // *** END OF UPDATED cleanText BODY ***
         };
 
         const cleanPhoneNumber = (numberText, currentCountry) => {
             if (!numberText) return '';
-            let cleaned = String(numberText).trim(); 
-            const startsWithPlus = cleaned.startsWith('+');
-            cleaned = cleaned.replace(/\D/g, ''); // Remove all non-digits
+            let cleaned = String(numberText).trim().replace(/\D/g, ''); // Remove all non-digits
 
             if (currentCountry && currentCountry.toLowerCase() === 'australia') {
-                if (cleaned.startsWith('0') && (cleaned.length === 9 || cleaned.length === 10)) { // 03xxxxxx, 04xxxxxxxx
-                    return '+61' + cleaned.substring(1);
+                if (cleaned.startsWith('0')) { // Handles 04xxxxxxxxx, 03xxxxxx
+                    cleaned = '61' + cleaned.substring(1);
+                } else if (cleaned.startsWith('61')) { // Handles +614xxxxxxxxx or 614xxxxxxxxx
+                    // Already starts with 61, no change needed.
+                } else { 
+                    // Assume a local 8 or 9 digit number without leading 0 or 61. Needs country code.
+                    // This is a more aggressive assumption. For a PoC, it's ok, but in production, might need more robust local prefix handling.
+                    // For now, if it's 8-10 digits and no prefix, prepend 61.
+                    if (cleaned.length >= 8 && cleaned.length <= 10) { // e.g., 9xxxxxxx, 4xxxxxxxxx
+                        cleaned = '61' + cleaned;
+                    }
                 }
-                if (cleaned.startsWith('61') && (cleaned.length === 10 || cleaned.length === 11)) { // 613xxxxxx, 614xxxxxxxx
-                    return '+' + cleaned;
+                // Ensure it's exactly 61XXXXXXXXXX for Notifyre. If it's too long (e.g., 6104...), trim the '0'.
+                if (cleaned.startsWith('610') && cleaned.length > 10) { // e.g., 610411279773 -> 61411279773
+                     cleaned = '61' + cleaned.substring(3); // Remove '0' after '61'
                 }
             }
-            // For other countries or if no specific country rule, just format cleanly
-            return startsWithPlus ? '+' + cleaned : cleaned; 
+            // If the number somehow still has a leading plus (unlikely after replace(/\D/g, '') but good to be safe)
+            return cleaned.startsWith('+') ? cleaned.substring(1) : cleaned; 
         };
 
         return {
@@ -332,7 +338,6 @@ async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
         const genericWords = ['project', 'business', 'team', 'contact', 'support', 'admin', 'office', 'store', 'shop', 'sales', 'info', 'general', 'us', 'our', 'hello', 'get in touch', 'enquiries', 'email', 'phone', 'location', 'locations', 'company', 'services', 'trading', 'group', 'ltd', 'pty', 'inc', 'llc', 'customer', 'relations', 'marketing', 'welcome', 'home', 'privacy', 'terms', 'cookies', 'copyright', 'all rights reserved', 'headquarters', 'menu', 'products', 'delivery', 'online'];
         
         let foundAboutLink = false;
-        // CORRECTED LINE 1: changed links_a to a
         const allLinksOnCurrentPage = await page.$$eval('a', (links) => links.map(a => ({ href: a.href, text: a.innerText.toLowerCase() })));
         
         for (const keyword of aboutPageKeywords) {
@@ -375,7 +380,6 @@ async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
             if (data.OwnerName) break;
         }
 
-        // CORRECTED LINE 2: changed links_a to a
         const currentLinks = await page.$$eval('a', (links) => links.map(a => ({ href: a.href, text: a.innerText.toLowerCase() })));
 
         data.InstagramURL = currentLinks.find(link => link.href.includes('instagram.com'))?.href || '';
