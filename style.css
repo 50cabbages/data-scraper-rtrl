@@ -182,6 +182,7 @@ h2 i.fas {
 /* Form Groups */
 .form-group {
     margin-bottom: 25px;
+    position: relative; /* Crucial for positioning autocomplete suggestions */
 }
 
 label {
@@ -214,10 +215,11 @@ select { /* Added select here */
     -webkit-appearance: none; /* For custom select arrow */
     -moz-appearance: none;
     appearance: none;
-    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23003366%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13%205.4L147.2%20202.7%2018.6%2074.8c-6.7-6.7-17.6-6.7-24.3%200-6.7%206.7-6.7%2017.6%200%2024.3l135%20135c6.7%206.7%2017.6%206.7%2024.3%200l135-135a17.6%2017.6%200%200%200%200-24.3c-6.7-6.7-17.5-6.7-24.3%200z%22%2F%3E%3C%2Fsvg%3E');
+    /* Remove background-image for country select, since it's now an input */
+    /* background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23003366%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13%205.4L147.2%20202.7%2018.6%2074.8c-6.7-6.7-17.6-6.7-24.3%200-6.7%206.7-6.7%2017.6%200%2024.3l135%20135c6.7%206.7%2017.6%206.7%2024.3%200l135-135a17.6%2017.6%200%200%200%200-24.3c-6.7-6.7-17.5-6.7-24.3%200z%22%2F%3E%3C%2Fsvg%3E');
     background-repeat: no-repeat;
     background-position: right 18px center;
-    background-size: 12px;
+    background-size: 12px; */
 }
 
 
@@ -228,6 +230,52 @@ select:focus { /* Added select here */
     box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.2);
     outline: none;
 }
+
+/* NEW: Autocomplete Suggestions Styling */
+.autocomplete-suggestions {
+    position: absolute;
+    top: 100%; /* Position below the input */
+    left: 0;
+    right: 0;
+    z-index: 100; /* Ensure it appears above other elements */
+    max-height: 200px; /* Make it scrollable */
+    overflow-y: auto;
+    background-color: var(--rtrl-white);
+    border: 1px solid var(--rtrl-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 0;
+    margin-top: 5px; /* Space between input and dropdown */
+    display: none; /* Hidden by default */
+}
+
+.autocomplete-suggestions ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.autocomplete-suggestions li {
+    padding: 12px 18px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.95em;
+    color: var(--rtrl-grey-dark);
+    display: flex; /* Allow for icon if needed in future */
+    align-items: center;
+    gap: 8px;
+}
+
+.autocomplete-suggestions li:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-suggestions li:hover,
+.autocomplete-suggestions li.selected {
+    background-color: var(--rtrl-blue-light);
+    color: var(--rtrl-blue-dark);
+}
+
 
 /* Buttons */
 .btn {

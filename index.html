@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!--
+        CRITICAL: Ensure this line is EXACTLY as shown.
+        No extra spaces, no changes to %%GOOGLE_MAPS_API_KEY%%
+        The &amp; in the browser console is a display artifact of HTML parsing,
+        but in the raw file it MUST be '&'.
+    -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=%%GOOGLE_MAPS_API_KEY%%&libraries=places&callback=initMap" async defer></script>
 </head>
 <body>
     <div class="app-container">
@@ -33,17 +40,23 @@
                     <label for="customCategoryInput"><i class="fas fa-feather-alt"></i> Custom Category:</label>
                     <input type="text" id="customCategoryInput" placeholder="e.g., Artisan Cheese Shop">
                 </div>
+                <!-- Suburb / Area input with suggestions container -->
                 <div class="form-group">
-                    <label for="location"><i class="fas fa-map-marker-alt"></i> Suburb / Area (Optional):</label>
-                    <input type="text" id="location" value="Melbourne" placeholder="e.g., Melbourne CBD, Bondi">
+                    <label for="locationInput"><i class="fas fa-map-marker-alt"></i> Suburb / Area (Optional):</label>
+                    <input type="text" id="locationInput" value="Melbourne" placeholder="e.g., Melbourne CBD, Bondi" autocomplete="off">
+                    <div id="locationSuggestions" class="autocomplete-suggestions"></div>
                 </div>
+                <!-- Postal Code input with suggestions container -->
                 <div class="form-group">
-                    <label for="postalCode"><i class="fas fa-mailbox"></i> Postal Code (Optional):</label>
-                    <input type="text" id="postalCode" value="3000" placeholder="e.g., 3000, 2026">
+                    <label for="postalCodeInput"><i class="fas fa-mailbox"></i> Postal Code (Optional):</label>
+                    <input type="text" id="postalCodeInput" value="3000" placeholder="e.g., 3000, 2026" autocomplete="off">
+                    <div id="postalCodeSuggestions" class="autocomplete-suggestions"></div>
                 </div>
+                <!-- Country input with suggestions container -->
                 <div class="form-group">
-                    <label for="countrySelect"><i class="fas fa-globe-asia"></i> Country:</label>
-                    <select id="countrySelect"></select>
+                    <label for="countryInput"><i class="fas fa-globe-asia"></i> Country:</label>
+                    <input type="text" id="countryInput" value="Australia" placeholder="Type to search country" autocomplete="off">
+                    <div id="countrySuggestions" class="autocomplete-suggestions"></div>
                 </div>
                 <div class="form-group">
                     <label for="count"><i class="fas fa-list-ol"></i> Number of Businesses to Find:</label>

@@ -10,12 +10,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const primaryCategorySelect = document.getElementById('primaryCategorySelect');
     const subCategoryGroup = document.getElementById('subCategoryGroup');
     const subCategorySelect = document.getElementById('subCategorySelect');
-    const customCategoryGroup = document.getElementById('customCategoryGroup'); // New custom category group
-    const customCategoryInput = document.getElementById('customCategoryInput'); // New custom category input
+    const customCategoryGroup = document.getElementById('customCategoryGroup');
+    const customCategoryInput = document.getElementById('customCategoryInput');
 
-    const locationInput = document.getElementById('location');
-    const postalCodeInput = document.getElementById('postalCode');
-    const countrySelect = document.getElementById('countrySelect'); // Changed to select dropdown
+    const locationInput = document.getElementById('locationInput');
+    const locationSuggestionsEl = document.getElementById('locationSuggestions');
+    const postalCodeInput = document.getElementById('postalCodeInput');
+    const postalCodeSuggestionsEl = document.getElementById('postalCodeSuggestions');
+    const countryInput = document.getElementById('countryInput');
+    const countrySuggestionsEl = document.getElementById('countrySuggestions');
+
     const countInput = document.getElementById('count');
     const progressBar = document.getElementById('progressBar');
     const logEl = document.getElementById('log');
@@ -30,11 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('currentYear').textContent = new Date().getFullYear();
     researchStatusIcon.classList.add('fa-hourglass-start');
 
-    // --- Curated Categories List (reflecting Google Business Profile categories) ---
-    // The empty string "" in sub-categories represents an "Any/Select" option for sub-categories
     const categories = {
-        "Select Category": [], // Default empty option
-        "Other/Custom": [], // New option for custom input
+        "Select Category": [],
+        "Other/Custom": [],
         "Butcher": [],
         "Bakery": [],
         "Café": [],
@@ -49,96 +51,261 @@ document.addEventListener('DOMContentLoaded', () => {
         "Electronics store": []
     };
 
-    // --- Curated Countries List ---
     const countries = [
-        { value: "", text: "Select Country" },
         { value: "Australia", text: "Australia" },
         { value: "New Zealand", text: "New Zealand" },
         { value: "United States", text: "USA" },
         { value: "United Kingdom", text: "UK" },
         { value: "Canada", text: "Canada" },
-        { value: "Germany", text: "Germany" }
+        { value: "Germany", text: "Germany" },
+        { value: "France", text: "France" },
+        { value: "Spain", text: "Spain" },
+        { value: "Italy", text: "Italy" },
+        { value: "Japan", text: "Japan" },
+        { value: "Singapore", text: "Singapore" },
+        { value: "Hong Kong", text: "Hong Kong" }
     ];
 
-    // Populate primary category dropdown
     function populatePrimaryCategories() {
-        primaryCategorySelect.innerHTML = ''; // Clear existing options
-        
-        // Add default "Select Business Category" option
+        primaryCategorySelect.innerHTML = '';
         const defaultCategoryOption = document.createElement('option');
-        defaultCategoryOption.value = ""; // Empty value indicates no selection
+        defaultCategoryOption.value = "";
         defaultCategoryOption.textContent = "Select Business Category";
         primaryCategorySelect.appendChild(defaultCategoryOption);
 
         for (const categoryName in categories) {
-            if (categoryName !== "Select Category") { // Skip the internal default placeholder
+            if (categoryName !== "Select Category") {
                 const option = document.createElement('option');
                 option.value = categoryName;
                 option.textContent = categoryName;
                 primaryCategorySelect.appendChild(option);
             }
         }
-        primaryCategorySelect.value = "Butcher"; // Set "Butcher" as the default selected value upon load
-        handleCategoryChange(primaryCategorySelect.value); // Trigger initial display logic
+        primaryCategorySelect.value = "Butcher";
+        handleCategoryChange(primaryCategorySelect.value); // Trigger initial display logic for sub/custom
     }
 
-    // Populate sub-category dropdown based on primary selection
     function populateSubCategories(selectedCategory) {
-        subCategorySelect.innerHTML = ''; // Clear previous options
+        subCategorySelect.innerHTML = '';
         const subCategories = categories[selectedCategory];
 
         if (subCategories && subCategories.length > 0 && selectedCategory !== "" && selectedCategory !== "Other/Custom") {
-            subCategoryGroup.style.display = 'block'; // Show sub-category dropdown
+            subCategoryGroup.style.display = 'block';
             subCategories.forEach(subCat => {
                 const option = document.createElement('option');
                 option.value = subCat;
                 option.textContent = subCat === "" ? "Select Sub-Category (Optional)" : subCat;
                 subCategorySelect.appendChild(option);
             });
-            // If the first option is empty (like "Select Sub-Category"), make it selected by default
             if (subCategories[0] === "") {
                 subCategorySelect.value = "";
             }
         } else {
-            subCategoryGroup.style.display = 'none'; // Hide if no sub-categories or special category
-            subCategorySelect.value = ''; // Clear its value
+            subCategoryGroup.style.display = 'none';
+            subCategorySelect.value = '';
         }
     }
 
-    // Handle category change logic (including custom input visibility)
+    // FIX: Corrected logic for custom category visibility
     function handleCategoryChange(selectedCategory) {
         if (selectedCategory === "Other/Custom") {
             subCategoryGroup.style.display = 'none';
             subCategorySelect.value = '';
             customCategoryGroup.style.display = 'block';
-            customCategoryInput.focus(); // Focus on the new custom input field
+            customCategoryInput.focus();
         } else {
             customCategoryGroup.style.display = 'none';
-            customCategoryInput.value = ''; // Clear custom input when not in use
-            populateSubCategories(selectedCategory);
+            customCategoryInput.value = '';
+            populateSubCategories(selectedCategory); // Populate subcategories for non-custom primary categories
         }
     }
 
-    // Populate country dropdown
-    function populateCountries() {
-        countrySelect.innerHTML = '';
-        countries.forEach(country => {
-            const option = document.createElement('option');
-            option.value = country.value;
-            option.textContent = country.text;
-            countrySelect.appendChild(option);
-        });
-        countrySelect.value = "Australia"; // Set default selected value
-    }
-
-    // Event listener for primary category change
     primaryCategorySelect.addEventListener('change', (event) => {
         handleCategoryChange(event.target.value);
     });
 
     // Initial population on page load
     populatePrimaryCategories();
-    populateCountries();
+
+    function renderSuggestions(inputElement, suggestionsContainer, items, displayKey, valueKey, onSelectCallback) {
+        suggestionsContainer.innerHTML = '';
+        if (items.length === 0 || inputElement.value.trim() === '') {
+            suggestionsContainer.style.display = 'none';
+            return;
+        }
+
+        const ul = document.createElement('ul');
+        items.forEach((item) => {
+            const li = document.createElement('li');
+            li.textContent = item[displayKey];
+            li.dataset.value = item[valueKey];
+            li.dataset.original = JSON.stringify(item);
+            li.addEventListener('click', () => {
+                onSelectCallback(item);
+                suggestionsContainer.style.display = 'none';
+            });
+            ul.appendChild(li);
+        });
+        suggestionsContainer.appendChild(ul);
+        suggestionsContainer.style.display = 'block';
+    }
+
+    // NEW: Country Autocomplete
+    let countryAutocompleteTimer;
+    countryInput.addEventListener('input', () => {
+        clearTimeout(countryAutocompleteTimer);
+        const query = countryInput.value.toLowerCase();
+        if (query.length < 1) { // Show all on empty or short query
+            countrySuggestionsEl.style.display = 'none'; // Hide if input is cleared
+            return;
+        }
+        countryAutocompleteTimer = setTimeout(() => {
+            const filteredCountries = countries.filter(c => c.text.toLowerCase().includes(query));
+            renderSuggestions(countryInput, countrySuggestionsEl, filteredCountries, 'text', 'value', (selectedCountry) => {
+                countryInput.value = selectedCountry.text;
+            });
+        }, 300);
+    });
+
+    countryInput.addEventListener('focus', () => {
+        // Show all countries when focused and input is empty
+        if (countryInput.value.trim() === '') {
+            renderSuggestions(countryInput, countrySuggestionsEl, countries, 'text', 'value', (selectedCountry) => {
+                countryInput.value = selectedCountry.text;
+            });
+        } else {
+            // Re-trigger input for existing value to show filtered list
+            countryInput.dispatchEvent(new Event('input'));
+        }
+    });
+
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (event) => {
+        if (!locationInput.contains(event.target) && !locationSuggestionsEl.contains(event.target)) {
+            locationSuggestionsEl.style.display = 'none';
+        }
+        if (!postalCodeInput.contains(event.target) && !postalCodeSuggestionsEl.contains(event.target)) {
+            postalCodeSuggestionsEl.style.display = 'none';
+        }
+        if (!countryInput.contains(event.target) && !countrySuggestionsEl.contains(event.target)) {
+            countrySuggestionsEl.style.display = 'none';
+        }
+    });
+
+    let service;
+    let locationAutocompleteTimer;
+    let postalCodeAutocompleteTimer;
+
+    // initMap is now called by the Google Maps script due to `callback=initMap`
+    window.initMap = () => {
+        if (window.google && google.maps && google.maps.places) {
+            service = new google.maps.places.AutocompleteService();
+            console.log("Google Places Autocomplete Service initialized.");
+            // Optionally trigger a search on initial value if present
+            if (locationInput.value) locationInput.dispatchEvent(new Event('input'));
+            if (postalCodeInput.value) postalCodeInput.dispatchEvent(new Event('input'));
+        } else {
+            console.warn("Google Maps Places API not fully loaded. Autocomplete may not function.");
+        }
+    };
+
+    function fetchPlaceSuggestions(inputElement, suggestionsContainer, types, onSelectCallback) {
+        const query = inputElement.value.trim();
+        if (!service || query.length < 2) {
+            suggestionsContainer.style.display = 'none';
+            return;
+        }
+
+        service.getPlacePredictions({
+            input: query,
+            types: types,
+            componentRestrictions: countryInput.value ? { country: countries.find(c => c.text === countryInput.value)?.value.toLowerCase() } : {}
+        }, (predictions, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                const items = predictions.map(p => ({
+                    description: p.description,
+                    place_id: p.place_id
+                }));
+                renderSuggestions(inputElement, suggestionsContainer, items, 'description', 'place_id', async (selectedItem) => {
+                    inputElement.value = selectedItem.description;
+                    onSelectCallback(selectedItem);
+                });
+            } else {
+                console.warn("Places API Autocomplete status:", status, query);
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+    }
+
+    async function getPlaceDetails(placeId) {
+        const geocoder = new google.maps.Geocoder();
+        return new Promise((resolve, reject) => {
+            geocoder.geocode({ placeId: placeId }, (results, status) => {
+                if (status === google.maps.GeocoderStatus.OK && results[0]) {
+                    resolve(results[0]);
+                } else {
+                    console.error(`Geocoder failed for placeId ${placeId} with status: ${status}`);
+                    reject(new Error(`Geocoder failed with status: ${status}`));
+                }
+            });
+        });
+    }
+
+    locationInput.addEventListener('input', () => {
+        clearTimeout(locationAutocompleteTimer);
+        locationAutocompleteTimer = setTimeout(() => {
+            fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['(cities)', 'regions', 'locality', 'sublocality'], (selectedItem) => {
+                locationInput.value = selectedItem.description;
+            });
+        }, 300);
+    });
+    // Trigger on focus as well
+    locationInput.addEventListener('focus', () => {
+        if (locationInput.value.trim() === '') {
+            // Do nothing, let user type
+        } else {
+            locationInput.dispatchEvent(new Event('input'));
+        }
+    });
+
+    postalCodeInput.addEventListener('input', () => {
+        clearTimeout(postalCodeAutocompleteTimer);
+        postalCodeAutocompleteTimer = setTimeout(() => {
+            fetchPlaceSuggestions(postalCodeInput, postalCodeSuggestionsEl, ['postal_code'], async (selectedItem) => {
+                try {
+                    const details = await getPlaceDetails(selectedItem.place_id);
+                    let postalCode = '';
+                    let localityName = '';
+                    if (details && details.address_components) {
+                        const postalCodeComp = details.address_components.find(comp => comp.types.includes('postal_code'));
+                        const localityComp = details.address_components.find(comp => comp.types.includes('locality'));
+                        
+                        if (postalCodeComp) postalCode = postalCodeComp.long_name;
+                        if (localityComp) localityName = localityComp.long_name;
+                    }
+                    
+                    if (postalCode && localityName) {
+                        postalCodeInput.value = `${postalCode} - ${localityName}`;
+                    } else {
+                        postalCodeInput.value = selectedItem.description;
+                    }
+                } catch (error) {
+                    console.error("Error fetching postal code details:", error);
+                    postalCodeInput.value = selectedItem.description; // Fallback
+                }
+            });
+        }, 300);
+    });
+    // Trigger on focus as well
+    postalCodeInput.addEventListener('focus', () => {
+        if (postalCodeInput.value.trim() === '') {
+            // Do nothing, let user type
+        } else {
+            postalCodeInput.dispatchEvent(new Event('input'));
+        }
+    });
+
 
     socket.on('connect', () => {
         logMessage('Connected to the real-time server!', 'success');
@@ -182,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 OwnerName: '',
                 ...business,
                 Category: finalCategoryForDisplay, 
-                SuburbArea: locationInput.value.split(',')[0].trim(),
+                SuburbArea: locationInput.value.split(',')[0].trim(), 
                 LastVerifiedDate: new Date().toISOString().split('T')[0]
             };
             allCollectedData.push(fullBusinessData);
@@ -227,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const subCategory = subCategorySelect.value;
         const customCategory = customCategoryInput.value;
         
-        // Determine the actual search term to send to the server
         let categorySearchTerm;
         if (primaryCategory === "Other/Custom") {
             categorySearchTerm = customCategory;
@@ -237,9 +403,9 @@ document.addEventListener('DOMContentLoaded', () => {
             categorySearchTerm = primaryCategory;
         }
 
-        const location = locationInput.value;
-        const postalCode = postalCodeInput.value;
-        const country = countrySelect.value; // Get value from new country dropdown
+        const location = locationInput.value.split('-')[0].trim();
+        const postalCode = postalCodeInput.value.split('-')[0].trim();
+        const country = countryInput.value;
         const count = parseInt(countInput.value, 10);
         const allowEmailOrPhone = filterEmailOrPhoneCheckbox.checked;
 
@@ -259,14 +425,9 @@ document.addEventListener('DOMContentLoaded', () => {
 function cleanDisplayValue(text) {
     if (!text) return '';
 
-    // 1. Aggressively remove leading non-address-start characters.
     let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
-
-    // 2. Replace all Unicode separator characters (all types of spaces) with a standard space
     cleaned = cleaned.replace(/\p{Z}/gu, ' ');
-    // 3. Remove other non-printable control characters and the Byte Order Mark (BOM)
     cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
-    // 4. Normalize multiple spaces to a single space, then trim any remaining leading/trailing spaces
     return cleaned.replace(/\s+/g, ' ').trim();
 }
 
@@ -294,10 +455,10 @@ function cleanDisplayValue(text) {
         startButton.disabled = isBusy;
         primaryCategorySelect.disabled = isBusy;
         subCategorySelect.disabled = isBusy;
-        customCategoryInput.disabled = isBusy; // Disable custom input
+        customCategoryInput.disabled = isBusy;
         locationInput.disabled = isBusy;
         postalCodeInput.disabled = isBusy;
-        countrySelect.disabled = isBusy; // Disable country dropdown
+        countryInput.disabled = isBusy;
         countInput.disabled = isBusy;
         filterEmailOrPhoneCheckbox.disabled = isBusy;
         setDownloadButtonStates(isBusy);

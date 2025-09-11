@@ -1,9 +1,18 @@
+// server.js
 const express = require('express');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
+const fs = require('fs');
+require('dotenv').config();
+
+// =====================================================================
+// ADD THIS UNIQUE LOG TO CONFIRM SERVER.JS VERSION
+console.log("SERVER.JS LOADED: DIAGNOSTIC VERSION 2024-05-16-B");
+// =====================================================================
 
 puppeteer.use(StealthPlugin());
 
@@ -17,14 +26,56 @@ const io = new Server(server, {
 });
 
 const PORT = 3000;
+const GOOGLE_MAPS_API_KEY = process.env.MAPS_API_KEY;
+const PLACEHOLDER_KEY = '%%GOOGLE_MAPS_API_KEY%%';
+
+if (!GOOGLE_MAPS_API_KEY) {
+    console.error("ERROR: MAPS_API_KEY not found in .env file! Please ensure it's set correctly and restart the server.");
+    process.exit(1); 
+} else {
+    console.log("Server loaded API Key (first 5 and last 5 chars):", GOOGLE_MAPS_API_KEY.substring(0, 5) + "..." + GOOGLE_MAPS_API_KEY.substring(GOOGLE_MAPS_API_KEY.length - 5));
+    console.log("Expected placeholder in HTML:", PLACEHOLDER_KEY);
+}
+
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
+// <<< CRITICAL CHANGE: MOVE app.get('/') BEFORE app.use(express.static) >>>
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+    const indexPath = path.join(__dirname, 'index.html');
+    fs.readFile(indexPath, 'utf8', (err, data) => {
+        if (err) {
+            console.error('Error reading index.html from path:', indexPath, 'Error:', err);
+            return res.status(500).send('Error loading the application.');
+        }
+
+        console.log("\n--- HTML FILE READ ---");
+        console.log("Checking for placeholder in HTML content...");
+        const containsPlaceholder = data.includes(PLACEHOLDER_KEY);
+        console.log(`HTML content ${containsPlaceholder ? 'DOES' : 'DOES NOT'} contain the placeholder.`);
+        
+        let modifiedHtml = data;
+        if (containsPlaceholder) {
+            modifiedHtml = data.replace(PLACEHOLDER_KEY, GOOGLE_MAPS_API_KEY);
+            console.log("Replacement attempted.");
+            if (modifiedHtml.includes(PLACEHOLDER_KEY)) {
+                console.error("WARNING: Placeholder still found after replacement! Something is wrong with the replace operation.");
+            } else {
+                console.log("Placeholder replaced successfully in modified HTML string.");
+            }
+        } else {
+            console.warn("WARNING: Placeholder not found in HTML. API key will not be injected. Check index.html for exact placeholder match.");
+        }
+        console.log("--- END HTML PROCESSING ---\n");
+        
+        res.send(modifiedHtml);
+    });
 });
+
+// Serve static files AFTER the custom root route
+app.use(express.static(__dirname)); 
+
 
 io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
@@ -47,7 +98,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const searchQuery = `${category} in ${areaQuery}, ${country}`; // Category now includes sub-category if chosen
+        const searchQuery = `${category} in ${areaQuery}, ${country}`;
         socket.emit('log', `[Server] Starting search for ${count} *qualified* "${category}" prospects in "${areaQuery}, ${country}"`);
         if (allowEmailOrPhone) {
             socket.emit('log', `[Server] Qualification: Requiring at least an email OR a phone number.`);
@@ -60,16 +111,15 @@ io.on('connection', (socket) => {
             browser = await puppeteer.launch({
                 headless: true,
                 args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US,en'],
-                protocolTimeout: 120000, // Global timeout for CDP messages (2 minutes)
+                protocolTimeout: 120000,
             });
             const page = await browser.newPage();
-            // Set a default navigation timeout for the page, which can be overridden per navigation
-            page.setDefaultNavigationTimeout(60000); // 60 seconds
+            page.setDefaultNavigationTimeout(60000);
             await page.setExtraHTTPHeaders({ 'Accept-Language': 'en' });
 
             const qualifiedBusinesses = [];
-            const processedUrlSet = new Set(); // Tracks ALL unique URLs ever discovered from Maps
-            let totalRawUrlsAttemptedDetails = 0; // Total raw URLs for which we've attempted detailed scraping
+            const processedUrlSet = new Set();
+            let totalRawUrlsAttemptedDetails = 0;
             let mapsCollectionAttempts = 0;
             const MAX_MAPS_COLLECTION_ATTEMPTS = 5; 
             const MAX_TOTAL_RAW_URLS_TO_PROCESS = Math.max(count * 15, 50); 
@@ -89,7 +139,7 @@ io.on('connection', (socket) => {
                     break;
                 }
 
-                socket.emit('log', `\nLEVEL 1, Maps Collection Attempt ${mapsCollectionAttempts}/${MAX_MAPS_COLLECTION_ATTEMPTS}: Collecting up to ${finalRawUrlsTargetThisAttempt} *new* unique Google Maps URLs... (Total unique discovered so far: ${processedUrlSet.size})`);
+                socket.emit('log', `\nLEVEL 1, Maps Collection Attempt ${mapsCollectionAttempts}/${MAX_MAPS_COLLECTION_ATTEMTS}: Collecting up to ${finalRawUrlsTargetThisAttempt} *new* unique Google Maps URLs... (Total unique discovered so far: ${processedUrlSet.size})`);
                 const newlyDiscoveredUrls = await collectGoogleMapsUrlsContinuously(page, searchQuery, socket, finalRawUrlsTargetThisAttempt, processedUrlSet);
                 
                 if (newlyDiscoveredUrls.length === 0) {
@@ -270,9 +320,8 @@ async function collectGoogleMapsUrlsContinuously(page, searchQuery, socket, maxU
 
 async function scrapeGoogleMapsDetails(page, url, socket, country) {
     try {
-        // Increase navigation timeout for Google Maps details page, as it can be slow
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 }); // 90 seconds
-        await page.waitForSelector('h1', {timeout: 60000}); // 60 seconds for H1
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
+        await page.waitForSelector('h1', {timeout: 60000});
     } catch (error) {
         throw new Error(`Failed to load Google Maps page or find H1 for URL: ${url}. Error: ${error.message.split('\n')[0]}`);
     }
@@ -281,40 +330,29 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
         const cleanText = (text) => {
             if (!text) return '';
 
-            // 1. Aggressively remove leading non-address-start characters.
             let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
-            
-            // 2. Replace all Unicode separator characters (all types of spaces) with a standard space
-            cleaned = cleaned.replace(/\p{Z}/gu, ' '); 
-            // 3. Remove other non-printable control characters and the Byte Order Mark (BOM)
+            cleaned = cleaned.replace(/\p{Z}/gu, ' ');
             cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
-            // 4. Normalize multiple spaces to a single space, then trim any remaining leading/trailing spaces
             return cleaned.replace(/\s+/g, ' ').trim();
         };
 
         const cleanPhoneNumber = (numberText, currentCountry) => {
             if (!numberText) return '';
-            let cleaned = String(numberText).trim().replace(/\D/g, ''); // Remove all non-digits
+            let cleaned = String(numberText).trim().replace(/\D/g, '');
 
             if (currentCountry && currentCountry.toLowerCase() === 'australia') {
-                if (cleaned.startsWith('0')) { // Handles 04xxxxxxxxx, 03xxxxxx
+                if (cleaned.startsWith('0')) {
                     cleaned = '61' + cleaned.substring(1);
-                } else if (cleaned.startsWith('61')) { // Handles +614xxxxxxxxx or 614xxxxxxxxx
-                    // Already starts with 61, no change needed.
+                } else if (cleaned.startsWith('61')) {
                 } else { 
-                    // Assume a local 8 or 9 digit number without leading 0 or 61. Needs country code.
-                    // This is a more aggressive assumption. For a PoC, it's ok, but in production, might need more robust local prefix handling.
-                    // For now, if it's 8-10 digits and no prefix, prepend 61.
-                    if (cleaned.length >= 8 && cleaned.length <= 10) { // e.g., 9xxxxxxx, 4xxxxxxxxx
+                    if (cleaned.length >= 8 && cleaned.length <= 10) {
                         cleaned = '61' + cleaned;
                     }
                 }
-                // Ensure it's exactly 61XXXXXXXXXX for Notifyre. If it's too long (e.g., 6104...), trim the '0'.
-                if (cleaned.startsWith('610') && cleaned.length > 10) { // e.g., 610411279773 -> 61411279773
-                     cleaned = '61' + cleaned.substring(3); // Remove '0' after '61'
+                if (cleaned.startsWith('610') && cleaned.length > 10) {
+                     cleaned = '61' + cleaned.substring(3);
                 }
             }
-            // If the number somehow still has a leading plus (unlikely after replace(/\D/g, '') but good to be safe)
             return cleaned.startsWith('+') ? cleaned.substring(1) : cleaned; 
         };
 
