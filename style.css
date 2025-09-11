@@ -30,20 +30,21 @@ html, body {
     background-color: var(--rtrl-grey-light);
     color: var(--rtrl-grey-dark);
     display: flex;
-    justify-content: center;
+    justify-content: center; /* This centers the app-container */
     align-items: flex-start;
+    overflow-x: hidden; /* CRITICAL: Hide horizontal overflow on the body globally */
 }
 
 .app-container {
     width: 96%;
     max-width: 1600px;
-    margin: 2vw auto;
-    background: var(--rtrl-white);
-    padding: 35px;
+    margin: 2vw auto; /* 2vw on top/bottom, auto for horizontal centering */
+    padding: 35px; /* Adds 35px padding on all sides */
     border-radius: 12px;
     box-shadow: var(--rtrl-box-shadow);
     display: flex;
     flex-direction: column;
+    /* REMOVED: min-width property from here - let it shrink as much as needed */
 }
 
 /* Header */
@@ -92,14 +93,14 @@ header p {
 #sidebar-controls {
     flex: 0 0 350px; /* Sidebar is fixed width on desktop */
     background-color: var(--rtrl-blue-light);
-    padding: 30px;
+    padding: 30px; /* Default padding for sidebar */
     display: flex;
     flex-direction: column;
 }
 
 #main-content {
     flex-grow: 1;
-    min-width: 650px; /* ADDED: This is the desktop 'floor' for main-content. If (350+35+650) > viewport, it will overflow. */
+    min-width: 650px; /* This is the desktop 'floor' for main-content. */
     display: flex;
     flex-direction: column;
     gap: 35px;
@@ -114,7 +115,7 @@ header p {
 }
 
 #sidebar-controls.card {
-    padding: 30px;
+    padding: 30px; /* Keep consistent with #sidebar-controls default */
     box-shadow: none;
     background-color: var(--rtrl-blue-light);
 }
@@ -194,6 +195,8 @@ label {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap; /* NEW: Allow label text and icon to wrap if too long */
+    word-break: break-all; /* NEW: Allow long words within label to break */
 }
 
 label i.fas {
@@ -422,7 +425,6 @@ select:focus { /* Added select here */
 
 table {
     width: 100%;
-    min-width: 1100px; /* Kept for initial minimum width before scrollbar appears */
     border-collapse: collapse;
 }
 
@@ -492,21 +494,22 @@ footer {
 
 /* Responsive Design */
 /* Trigger stacked layout when overall width is too small for desired side-by-side */
-@media (max-width: 1035px) { /* This breakpoint now specifically targets where side-by-side becomes 'mashed up' */
+@media (max-width: 1035px) {
     .main-layout {
-        flex-direction: column; /* Explicitly stack columns at this breakpoint */
-        gap: 25px; /* Adjust gap when stacked */
-        flex-wrap: wrap; /* Allows the flex items to wrap within the column direction */
+        flex-direction: column;
+        gap: 25px;
+        flex-wrap: wrap;
     }
     #sidebar-controls {
-        flex: auto; /* Allow sidebar to take full width */
-        width: 100%; /* Explicitly set width to 100% when stacked */
-        max-width: 100%; /* Ensure it doesn't exceed 100% */
+        flex: auto;
+        width: 100%;
+        max-width: 100%;
+        padding: 25px; /* MODIFIED: Reduced padding for medium screens */
     }
     #main-content {
         flex-grow: 1;
-        width: 100%; /* Explicitly set width to 100% when stacked */
-        min-width: unset; /* Allow it to shrink as needed in column view */
+        width: 100%;
+        min-width: unset;
     }
     .app-container {
         margin: 15px auto;
@@ -570,9 +573,14 @@ footer {
     .app-container {
         border-radius: 0;
         box-shadow: none;
-        padding: 15px;
-        width: 100vw;
-        margin: 0;
+        padding: 15px; /* Further reduced padding for small screens */
+        width: 100vw; /* Take full viewport width */
+        margin: 0; /* Remove auto margins to stretch to full width */
+        min-width: unset; /* Ensure app-container itself can shrink */
+        overflow-x: hidden; /* CRITICAL: Hide overflow within the app-container itself for mobile */
+    }
+    #sidebar-controls {
+        padding: 20px; /* MODIFIED: Further reduced padding for small screens */
     }
     header h1 {
         font-size: 2em;
@@ -587,9 +595,6 @@ footer {
         padding: 12px;
         font-size: 0.8em;
     }
-    table {
-        min-width: 700px;
-    }
 }
 
 @media (max-width: 480px) {
@@ -603,7 +608,14 @@ footer {
         font-size: 0.75em;
         padding: 10px;
     }
-    table {
-        min-width: 600px;
+    .app-container {
+        padding: 10px; /* Even smaller padding for tiny screens */
     }
-}
+    #sidebar-controls {
+        padding: 15px; /* MODIFIED: Even further reduced padding for tiny screens */
+    }
+    input[type="text"], input[type="number"], select {
+        padding: 10px 12px; /* Smallest padding for inputs on very small screens */
+        font-size: 0.9em;
+    }
+}   
