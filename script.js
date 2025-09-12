@@ -1,660 +1,278 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Socket Initialization ---
     const socket = io('http://localhost:3000');
 
-    const startButton = document.getElementById('startButton');
-    const downloadFullExcelButton = document.getElementById('downloadFullExcelButton');
-    const downloadNotifyreCSVButton = document.getElementById('downloadNotifyreCSVButton');
-    const downloadGoogleWorkspaceCSVButton = document.getElementById('downloadGoogleWorkspaceCSVButton');
-    
-    const primaryCategorySelect = document.getElementById('primaryCategorySelect');
-    const subCategoryGroup = document.getElementById('subCategoryGroup');
-    const subCategorySelect = document.getElementById('subCategorySelect');
-    const customCategoryGroup = document.getElementById('customCategoryGroup');
-    const customCategoryInput = document.getElementById('customCategoryInput');
-
-    const locationInput = document.getElementById('locationInput');
-    const locationSuggestionsEl = document.getElementById('locationSuggestions');
-    const postalCodeInput = document.getElementById('postalCodeInput');
-    const postalCodeSuggestionsEl = document.getElementById('postalCodeSuggestions');
-    const countryInput = document.getElementById('countryInput');
-    const countrySuggestionsEl = document.getElementById('countrySuggestions');
-
-    const countInput = document.getElementById('count');
-    const progressBar = document.getElementById('progressBar');
-    const logEl = document.getElementById('log');
-    const resultsTableBody = document.getElementById('resultsTableBody');
-    const researchStatusIcon = document.getElementById('researchStatusIcon');
-    
-    const filterEmailOrPhoneCheckbox = document.getElementById('filterEmailOrPhone');
-
-    let allCollectedData = [];
-    let displayedData = [];
-
-    // Define Google Maps service variables at the top of the DOMContentLoaded scope
-    let service; // Google Places AutocompleteService
-    let geocoder; // Google Maps Geocoder
-    let locationAutocompleteTimer;
-    let postalCodeAutocompleteTimer;
-
-    document.getElementById('currentYear').textContent = new Date().getFullYear();
-    researchStatusIcon.classList.add('fa-hourglass-start');
-
-    const categories = {
-        "Select Category": [],
-        "Other/Custom": [],
-        "Butcher": [],
-        "Bakery": [],
-        "Café": [],
-        "Restaurant": ["", "Thai restaurant", "Italian restaurant", "Japanese restaurant", "Indian restaurant", "Chinese restaurant", "Mexican restaurant", "Fast food restaurant"],
-        "Hair salon": [],
-        "Florist": [],
-        "Fashion designer": ["", "Clothing store", "Boutique", "Men's clothing store", "Women's clothing store", "Children's clothing store"],
-        "Grocer": ["", "Organic grocer", "Asian grocer", "Fruit and vegetable store"],
-        "Pharmacy": [],
-        "Book store": [],
-        "Jewellery store": [],
-        "Electronics store": []
+    // --- DOM Element References ---
+    const elements = {
+        startButton: document.getElementById('startButton'),
+        downloadFullExcelButton: document.getElementById('downloadFullExcelButton'),
+        downloadNotifyreCSVButton: document.getElementById('downloadNotifyreCSVButton'),
+        downloadGoogleWorkspaceCSVButton: document.getElementById('downloadGoogleWorkspaceCSVButton'),
+        primaryCategorySelect: document.getElementById('primaryCategorySelect'),
+        subCategoryGroup: document.getElementById('subCategoryGroup'),
+        subCategorySelect: document.getElementById('subCategorySelect'),
+        customCategoryGroup: document.getElementById('customCategoryGroup'),
+        customCategoryInput: document.getElementById('customCategoryInput'),
+        locationInput: document.getElementById('locationInput'),
+        locationSuggestionsEl: document.getElementById('locationSuggestions'),
+        postalCodeInput: document.getElementById('postalCodeInput'),
+        postalCodeSuggestionsEl: document.getElementById('postalCodeSuggestions'),
+        countryInput: document.getElementById('countryInput'),
+        countrySuggestionsEl: document.getElementById('countrySuggestions'),
+        countInput: document.getElementById('count'),
+        findAllBusinessesCheckbox: document.getElementById('findAllBusinesses'),
+        progressBar: document.getElementById('progressBar'),
+        logEl: document.getElementById('log'),
+        resultsTableBody: document.getElementById('resultsTableBody'),
+        researchStatusIcon: document.getElementById('researchStatusIcon'),
     };
 
-    // --- UPDATED: Country values to ISO 3166-1 Alpha-2 codes ---
+    // --- Application State ---
+    let allCollectedData = [];
+    let displayedData = [];
+    let service, geocoder; // Google Maps services
+    let locationAutocompleteTimer, postalCodeAutocompleteTimer, countryAutocompleteTimer;
+
+    // --- Data Definitions ---
+    const categories = {
+        "Select Category": [], "Other/Custom": [], "Butcher": [], "Bakery": [], "Café": [],
+        "Restaurant": ["", "Thai restaurant", "Italian restaurant", "Japanese restaurant", "Indian restaurant", "Chinese restaurant", "Mexican restaurant", "Fast food restaurant"],
+        "Hair salon": [], "Florist": [], "Fashion designer": ["", "Clothing store", "Boutique", "Men's clothing store", "Women's clothing store", "Children's clothing store"],
+        "Grocer": ["", "Organic grocer", "Asian grocer", "Fruit and vegetable store"],
+        "Pharmacy": [], "Book store": [], "Jewellery store": [], "Electronics store": []
+    };
     const countries = [
-        { value: "AU", text: "Australia" },
-        { value: "NZ", text: "New Zealand" },
-        { value: "US", text: "United States" },
-        { value: "GB", text: "United Kingdom" },
-        { value: "CA", text: "Canada" },
-        { value: "DE", text: "Germany" },
-        { value: "FR", text: "France" },
-        { value: "ES", text: "Spain" },
-        { value: "IT", text: "Italy" },
-        { value: "JP", text: "Japan" },
-        { value: "SG", text: "Singapore" },
-        { value: "HK", text: "Hong Kong" }
+        { value: "AU", text: "Australia" }, { value: "NZ", text: "New Zealand" }, { value: "US", text: "United States" },
+        { value: "GB", text: "United Kingdom" }, { value: "CA", text: "Canada" }, { value: "DE", text: "Germany" },
+        { value: "FR", text: "France" }, { value: "ES", text: "Spain" }, { value: "IT", text: "Italy" },
+        { value: "JP", text: "Japan" }, { value: "SG", text: "Singapore" }, { value: "HK", text: "Hong Kong" }
     ];
 
-    function populatePrimaryCategories() {
-        primaryCategorySelect.innerHTML = '';
-        const defaultCategoryOption = document.createElement('option');
-        defaultCategoryOption.value = "";
-        defaultCategoryOption.textContent = "Select Business Category";
-        primaryCategorySelect.appendChild(defaultCategoryOption);
+    // --- Initial Setup ---
+    function initializeApp() {
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        elements.researchStatusIcon.className = 'fas fa-hourglass-start';
 
-        for (const categoryName in categories) {
-            if (categoryName !== "Select Category") {
-                const option = document.createElement('option');
-                option.value = categoryName;
-                option.textContent = categoryName;
-                primaryCategorySelect.appendChild(option);
-            }
-        }
-        primaryCategorySelect.value = "Butcher";
-        handleCategoryChange(primaryCategorySelect.value);
+        populatePrimaryCategories(elements.primaryCategorySelect, categories, "Butcher");
+        handleCategoryChange("Butcher", elements.subCategoryGroup, elements.subCategorySelect, elements.customCategoryGroup, elements.customCategoryInput, categories);
+
+        setupEventListeners();
     }
 
-    function populateSubCategories(selectedCategory) {
-        subCategorySelect.innerHTML = '';
-        const subCategories = categories[selectedCategory];
-
-        if (subCategories && subCategories.length > 0 && selectedCategory !== "" && selectedCategory !== "Other/Custom") {
-            subCategoryGroup.style.display = 'block';
-            subCategories.forEach(subCat => {
-                const option = document.createElement('option');
-                option.value = subCat;
-                option.textContent = subCat === "" ? "Select Sub-Category (Optional)" : subCat;
-                subCategorySelect.appendChild(option);
-            });
-            if (subCategories[0] === "") {
-                subCategorySelect.value = "";
-            }
-        } else {
-            subCategoryGroup.style.display = 'none';
-            subCategorySelect.value = '';
-        }
-    }
-
-    function handleCategoryChange(selectedCategory) {
-        if (selectedCategory === "Other/Custom") {
-            subCategoryGroup.style.display = 'none';
-            subCategorySelect.value = '';
-            customCategoryGroup.style.display = 'block';
-            customCategoryInput.focus();
-        } else {
-            customCategoryGroup.style.display = 'none';
-            customCategoryInput.value = '';
-            populateSubCategories(selectedCategory);
-        }
-    }
-
-    primaryCategorySelect.addEventListener('change', (event) => {
-        handleCategoryChange(event.target.value);
-    });
-
-    populatePrimaryCategories();
-
-    function renderSuggestions(inputElement, suggestionsContainer, items, displayKey, valueKey, onSelectCallback) {
-        suggestionsContainer.innerHTML = '';
-        if (items.length === 0 || inputElement.value.trim() === '') {
-            suggestionsContainer.style.display = 'none';
-            return;
-        }
-
-        const ul = document.createElement('ul');
-        items.forEach((item) => {
-            const li = document.createElement('li');
-            li.textContent = item[displayKey];
-            li.dataset.value = item[valueKey];
-            li.dataset.original = JSON.stringify(item);
-            li.addEventListener('click', () => {
-                onSelectCallback(item);
-                suggestionsContainer.style.display = 'none';
-            });
-            ul.appendChild(li);
+    // --- Event Listeners Setup ---
+    function setupEventListeners() {
+        elements.primaryCategorySelect.addEventListener('change', (event) => {
+            handleCategoryChange(event.target.value, elements.subCategoryGroup, elements.subCategorySelect, elements.customCategoryGroup, elements.customCategoryInput, categories);
         });
-        suggestionsContainer.appendChild(ul);
-        suggestionsContainer.style.display = 'block';
+
+        elements.findAllBusinessesCheckbox.addEventListener('change', (e) => {
+            elements.countInput.disabled = e.target.checked;
+            if (e.target.checked) {
+                elements.countInput.value = '';
+            }
+        });
+        
+        // Autocomplete Listeners
+        elements.countryInput.addEventListener('input', () => {
+            clearTimeout(countryAutocompleteTimer);
+            countryAutocompleteTimer = setTimeout(() => {
+                const query = elements.countryInput.value.toLowerCase();
+                if (query.length < 1) { elements.countrySuggestionsEl.style.display = 'none'; return; }
+                const filteredCountries = countries.filter(c => c.text.toLowerCase().includes(query));
+                renderSuggestions(elements.countryInput, elements.countrySuggestionsEl, filteredCountries, 'text', 'value', (c) => { elements.countryInput.value = c.text; });
+            }, 300);
+        });
+        
+        elements.locationInput.addEventListener('input', () => {
+            clearTimeout(locationAutocompleteTimer);
+            locationAutocompleteTimer = setTimeout(() => fetchPlaceSuggestions(elements.locationInput, elements.locationSuggestionsEl, ['geocode'], item => { elements.locationInput.value = item.description; }), 300);
+        });
+
+        elements.postalCodeInput.addEventListener('input', () => {
+            clearTimeout(postalCodeAutocompleteTimer);
+            postalCodeAutocompleteTimer = setTimeout(() => fetchPlaceSuggestions(elements.postalCodeInput, elements.postalCodeSuggestionsEl, ['postal_code'], async (item) => {
+                try {
+                    const details = await getPlaceDetails(item.place_id);
+                    const postCodeComp = details.address_components.find(c => c.types.includes('postal_code'));
+                    const localityComp = details.address_components.find(c => c.types.includes('locality')) || details.address_components.find(c => c.types.includes('sublocality_level_1'));
+                    const postCode = postCodeComp ? postCodeComp.long_name : '';
+                    const locality = localityComp ? localityComp.long_name : '';
+                    elements.postalCodeInput.value = (postCode && locality) ? `${postCode} - ${locality}` : postCode || item.description;
+                } catch (error) {
+                    elements.postalCodeInput.value = item.description;
+                }
+            }), 300);
+        });
+        
+        // Hide suggestions on click outside
+        document.addEventListener('click', (event) => {
+            if (!elements.locationInput.contains(event.target)) elements.locationSuggestionsEl.style.display = 'none';
+            if (!elements.postalCodeInput.contains(event.target)) elements.postalCodeSuggestionsEl.style.display = 'none';
+            if (!elements.countryInput.contains(event.target)) elements.countrySuggestionsEl.style.display = 'none';
+        });
+
+        // Action Buttons
+        elements.startButton.addEventListener('click', startResearch);
+        elements.downloadFullExcelButton.addEventListener('click', () => downloadExcel(displayedData, 'rtrl_full_prospect_list', 'xlsx', elements.logEl));
+        elements.downloadNotifyreCSVButton.addEventListener('click', () => downloadExcel(displayedData.filter(d => d.Phone), 'notifyre_sms_list', 'csv', elements.logEl, ["Phone", "OwnerName", "BusinessName", "SuburbArea", "Category", "Website"]));
+        elements.downloadGoogleWorkspaceCSVButton.addEventListener('click', () => downloadExcel(displayedData.filter(d => d.Email), 'google_workspace_email_list', 'csv', elements.logEl, ["Email", "OwnerName", "BusinessName", "StreetAddress", "SuburbArea", "Website", "InstagramURL", "FacebookURL", "GoogleMapsURL", "Category"]));
     }
 
-    let countryAutocompleteTimer;
-    countryInput.addEventListener('input', () => {
-        clearTimeout(countryAutocompleteTimer);
-        const query = countryInput.value.toLowerCase();
-        if (query.length < 1) {
-            countrySuggestionsEl.style.display = 'none';
-            return;
-        }
-        countryAutocompleteTimer = setTimeout(() => {
-            const filteredCountries = countries.filter(c => c.text.toLowerCase().includes(query));
-            renderSuggestions(countryInput, countrySuggestionsEl, filteredCountries, 'text', 'value', (selectedCountry) => {
-                countryInput.value = selectedCountry.text; // Display full text, value will be ISO code internally
-            });
-        }, 300);
-    });
-
-    countryInput.addEventListener('focus', () => {
-        if (countryInput.value.trim() === '') {
-            // Show all countries when focused and input is empty
-            renderSuggestions(countryInput, countrySuggestionsEl, countries, 'text', 'value', (selectedCountry) => {
-                countryInput.value = selectedCountry.text;
-            });
-        } else {
-            // Re-trigger input for existing value to show filtered list
-            countryInput.dispatchEvent(new Event('input'));
-        }
-    });
-
-    document.addEventListener('click', (event) => {
-        if (!locationInput.contains(event.target) && !locationSuggestionsEl.contains(event.target)) {
-            locationSuggestionsEl.style.display = 'none';
-        }
-        if (!postalCodeInput.contains(event.target) && !postalCodeSuggestionsEl.contains(event.target)) {
-            postalCodeSuggestionsEl.style.display = 'none';
-        }
-        if (!countryInput.contains(event.target) && !countrySuggestionsEl.contains(event.target)) {
-            countrySuggestionsEl.style.display = 'none';
-        }
-    });
-
-    // --- Function to initialize Google Maps services (called by window.initMap in <head>) ---
-    window.rtrlApp = window.rtrlApp || {}; // Ensure window.rtrlApp exists
+    // --- Google Maps API ---
     window.rtrlApp.initializeMapServices = () => {
         if (window.google && google.maps && google.maps.places) {
             service = new google.maps.places.AutocompleteService();
             geocoder = new google.maps.Geocoder();
             console.log("Google Places Autocomplete Service initialized.");
-            // Trigger initial search if values are present and focus handlers might not have fired yet
-            if (locationInput.value) locationInput.dispatchEvent(new Event('input'));
-            if (postalCodeInput.value) postalCodeInput.dispatchEvent(new Event('input'));
         } else {
             console.warn("Google Maps Places API not fully loaded. Autocomplete may not function.");
         }
     };
-
-    // Check if Google Maps API was already loaded before this script fully executed (due to 'async defer')
     if (window.google && google.maps && google.maps.places && !service) {
-        console.log("Google Maps API already loaded (before script.js fully executed). Initializing map services now.");
         window.rtrlApp.initializeMapServices();
     }
-    // --- END NEW MAPS INITIALIZATION ---
 
-    function fetchPlaceSuggestions(inputElement, suggestionsContainer, types, onSelectCallback) {
-        const query = inputElement.value.trim();
-        if (!service || query.length < 2) {
-            suggestionsContainer.style.display = 'none';
-            return;
-        }
-
-        // Get the ISO country code from the selected country input
-        const selectedCountryText = countryInput.value;
-        const countryIsoCode = countries.find(c => c.text === selectedCountryText)?.value;
-
-        const componentRestrictions = countryIsoCode ? { country: countryIsoCode } : {};
-
-        service.getPlacePredictions({
-            input: query,
-            types: types,
-            componentRestrictions: componentRestrictions // Use the ISO country code here
-        }, (predictions, status) => {
+    function fetchPlaceSuggestions(inputEl, suggestionsEl, types, onSelect) {
+        if (!service || inputEl.value.trim().length < 2) { suggestionsEl.style.display = 'none'; return; }
+        const countryIsoCode = countries.find(c => c.text === elements.countryInput.value)?.value;
+        service.getPlacePredictions({ input: inputEl.value, types, componentRestrictions: { country: countryIsoCode } }, (predictions, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-                const items = predictions.map(p => ({
-                    description: p.description,
-                    place_id: p.place_id
-                }));
-                renderSuggestions(inputElement, suggestionsContainer, items, 'description', 'place_id', async (selectedItem) => {
-                    // Update input value on selection, then call the specific callback
-                    inputElement.value = selectedItem.description;
-                    onSelectCallback(selectedItem);
-                });
+                const items = predictions.map(p => ({ description: p.description, place_id: p.place_id }));
+                renderSuggestions(inputEl, suggestionsEl, items, 'description', 'place_id', onSelect);
             } else {
-                console.warn("Places API Autocomplete status:", status, query);
-                suggestionsContainer.style.display = 'none';
+                suggestionsEl.style.display = 'none';
             }
         });
     }
 
     async function getPlaceDetails(placeId) {
-        if (!geocoder) {
-            console.error("Geocoder service not initialized.");
-            return Promise.reject(new Error("Geocoder service not available."));
-        }
         return new Promise((resolve, reject) => {
-            geocoder.geocode({ placeId: placeId }, (results, status) => {
-                if (status === google.maps.GeocoderStatus.OK && results[0]) {
-                    resolve(results[0]);
-                } else {
-                    console.error(`Geocoder failed for placeId ${placeId} with status: ${status}`);
-                    reject(new Error(`Geocoder failed with status: ${status}`));
-                }
+            if (!geocoder) return reject(new Error("Geocoder service not initialized."));
+            geocoder.geocode({ placeId }, (results, status) => {
+                if (status === google.maps.GeocoderStatus.OK && results[0]) resolve(results[0]);
+                else reject(new Error(`Geocoder failed with status: ${status}`));
             });
         });
     }
 
-locationInput.addEventListener('input', () => {
-        clearTimeout(locationAutocompleteTimer);
-        locationAutocompleteTimer = setTimeout(() => {
-            // Option 1: Focus on cities AND localities/suburbs
-            // This is generally the most useful for a "Suburb/Area" input.
-            // Note: '(cities)' cannot be mixed. If you want cities AND suburbs,
-            // you should generally use 'geocode' or combine requests.
-            // For Autocomplete, we can try to get broader administrative areas.
-            fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['geocode'], (selectedItem) => {
-                locationInput.value = selectedItem.description;
-            });
-
-            // Alternative (if 'geocode' is too broad):
-            // If you strictly want *only* cities or *only* regions, you'd do:
-            // fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['(cities)'], (selectedItem) => { ... });
-            // OR
-            // fetchPlaceSuggestions(locationInput, locationSuggestionsEl, ['(regions)'], (selectedItem) => { ... });
-
-        }, 300);
-    });
-    locationInput.addEventListener('focus', () => {
-        if (locationInput.value.trim() === '') {
-            // Do nothing, let user type to get suggestions
-        } else {
-            locationInput.dispatchEvent(new Event('input')); // Re-trigger input to show filtered suggestions
-        }
-    });
-
-    postalCodeInput.addEventListener('input', () => {
-        clearTimeout(postalCodeAutocompleteTimer);
-        postalCodeAutocompleteTimer = setTimeout(() => {
-            fetchPlaceSuggestions(postalCodeInput, postalCodeSuggestionsEl, ['postal_code'], async (selectedItem) => {
-                try {
-                    const details = await getPlaceDetails(selectedItem.place_id);
-                    let postalCode = '';
-                    let localityName = '';
-                    if (details && details.address_components) {
-                        const postalCodeComp = details.address_components.find(comp => comp.types.includes('postal_code'));
-                        // Look for locality (city/town) or sublocality (suburb/neighborhood)
-                        const localityComp = details.address_components.find(comp => comp.types.includes('locality')) ||
-                                             details.address_components.find(comp => comp.types.includes('sublocality_level_1'));
-                        
-                        if (postalCodeComp) postalCode = postalCodeComp.long_name;
-                        if (localityComp) localityName = localityComp.long_name;
-                    }
-                    
-                    // --- Implemented: Postal code display format '3000 - Melbourne' ---
-                    if (postalCode && localityName) {
-                        postalCodeInput.value = `${postalCode} - ${localityName}`;
-                    } else if (postalCode) {
-                        postalCodeInput.value = postalCode; // Fallback to just postal code if no locality
-                    } else {
-                        postalCodeInput.value = selectedItem.description; // Fallback to original description
-                    }
-                } catch (error) {
-                    console.error("Error fetching postal code details:", error);
-                    postalCodeInput.value = selectedItem.description; // Fallback
-                }
-            });
-        }, 300);
-    });
-    postalCodeInput.addEventListener('focus', () => {
-        if (postalCodeInput.value.trim() === '') {
-            // Do nothing, let user type to get suggestions
-        } else {
-            postalCodeInput.dispatchEvent(new Event('input')); // Re-trigger input to show filtered suggestions
-        }
-    });
-
-
+    // --- Socket Event Handlers ---
     socket.on('connect', () => {
-        logMessage('Connected to the real-time server!', 'success');
-        researchStatusIcon.classList.remove('fa-spin', 'fa-spinner', 'fa-check-circle', 'fa-exclamation-triangle');
-        researchStatusIcon.classList.add('fa-hourglass-start');
+        logMessage(elements.logEl, 'Connected to the real-time server!', 'success');
+        elements.researchStatusIcon.className = 'fas fa-hourglass-start';
     });
 
     socket.on('disconnect', () => {
-        logMessage('Disconnected from the real-time server.', 'error');
-        setUiState(false);
-        progressBar.classList.remove('pulsing');
-        researchStatusIcon.classList.remove('fa-spin', 'fa-spinner', 'fa-check-circle', 'fa-hourglass-start');
-        researchStatusIcon.classList.add('fa-exclamation-triangle');
+        logMessage(elements.logEl, 'Disconnected from the real-time server.', 'error');
+        const uiElementsToManage = getUiElementsForStateChange();
+        setUiState(false, uiElementsToManage);
+        elements.progressBar.classList.remove('pulsing');
+        elements.researchStatusIcon.className = 'fas fa-exclamation-triangle';
     });
 
-    socket.on('log', (message) => {
-        logMessage(message, 'info');
+    socket.on('log', (message) => logMessage(elements.logEl, message, 'info'));
+    
+    // --- UPDATED SOCKET HANDLER ---
+    socket.on('progress_update', ({ processed, discovered, added, target }) => {
+        updateProgressBar(elements.progressBar, elements.researchStatusIcon, processed, discovered, added, target);
     });
-
-    socket.on('progress_update', ({ qualifiedFound, qualifiedTarget }) => {
-        updateProgressBar(qualifiedFound, qualifiedTarget); 
-    });
+    
+    socket.on('scrape_error', (error) => handleScrapeError(error));
 
     socket.on('scrape_complete', (businesses) => {
-        logMessage(`Scraping process finished by server. Received ${businesses.length} qualified prospects.`, 'success');
+        logMessage(elements.logEl, `Scraping process finished. Received ${businesses.length} total businesses.`, 'success');
         
-        allCollectedData = []; 
-        resultsTableBody.innerHTML = '';
+        allCollectedData = [];
+        elements.resultsTableBody.innerHTML = '';
         
-        businesses.forEach((business) => {
-            let finalCategoryForDisplay = "";
-            if (primaryCategorySelect.value === "Other/Custom") {
-                finalCategoryForDisplay = customCategoryInput.value;
-            } else if (subCategorySelect.value && subCategorySelect.value !== "") {
-                finalCategoryForDisplay = subCategorySelect.value;
-            } else {
-                finalCategoryForDisplay = primaryCategorySelect.value;
-            }
+        const countValue = parseInt(elements.countInput.value, 10);
+        const find_all = elements.findAllBusinessesCheckbox.checked || !countValue || countValue <= 0;
+        const targetCount = find_all ? businesses.length : countValue;
 
+        businesses.forEach((business) => {
+            let finalCategoryForDisplay = elements.primaryCategorySelect.value === "Other/Custom" ? elements.customCategoryInput.value : (elements.subCategorySelect.value || elements.primaryCategorySelect.value);
             const fullBusinessData = {
-                OwnerName: '',
-                ...business,
-                Category: finalCategoryForDisplay, 
-                // Ensure only the area part is used if postal code format is "3000 - Melbourne"
-                SuburbArea: locationInput.value.includes('-') ? locationInput.value.split('-')[1].trim() : locationInput.value.trim(), 
+                OwnerName: '', ...business, Category: finalCategoryForDisplay,
+                SuburbArea: elements.locationInput.value.includes('-') ? elements.locationInput.value.split('-')[1].trim() : elements.locationInput.value.trim(),
                 LastVerifiedDate: new Date().toISOString().split('T')[0]
             };
             allCollectedData.push(fullBusinessData);
         });
 
         displayedData = allCollectedData;
-        displayedData.forEach(business => addTableRow(business));
-        updateProgressBar(allCollectedData.length, parseInt(countInput.value, 10)); 
-        logMessage(`All ${allCollectedData.length} qualified prospects displayed below.`, 'success');
-        setUiState(false);
+        displayedData.forEach(business => addTableRow(elements.resultsTableBody, business));
+        
+        // Final progress bar update to 100%
+        updateProgressBar(elements.progressBar, elements.researchStatusIcon, targetCount, targetCount, businesses.length, find_all ? -1 : targetCount);
+
+        logMessage(elements.logEl, `Displaying all ${allCollectedData.length} businesses found.`, 'success');
+        const uiElementsToManage = getUiElementsForStateChange();
+        setUiState(false, uiElementsToManage);
     });
 
-    socket.on('scrape_error', (error) => {
-        logMessage(`SCRAPE ERROR: ${error.error || 'An unknown error occurred on the server.'}`, 'error');
-        logMessage(`Please check server console for details and ensure all inputs are valid.`, 'error');
-        setUiState(false);
-        progressBar.classList.remove('pulsing');
-        researchStatusIcon.classList.remove('fa-spin', 'fa-spinner', 'fa-check-circle', 'fa-hourglass-start');
-        researchStatusIcon.classList.add('fa-exclamation-triangle');
-        updateProgressBar(0, parseInt(countInput.value, 10)); 
-    });
+    // --- Main Application Logic ---
+    function startResearch() {
+        const uiElementsToManage = getUiElementsForStateChange();
+        setUiState(true, uiElementsToManage);
 
-    startButton.addEventListener('click', startResearch);
-    
-    downloadFullExcelButton.addEventListener('click', () => downloadExcel(displayedData, 'rtrl_full_prospect_list', 'xlsx'));
-    downloadNotifyreCSVButton.addEventListener('click', () => downloadExcel(displayedData, 'notifyre_sms_list', 'csv', ["Phone", "OwnerName", "BusinessName", "SuburbArea", "Category", "Website"]));
-    downloadGoogleWorkspaceCSVButton.addEventListener('click', () => downloadExcel(displayedData, 'google_workspace_email_list', 'csv', ["Email", "OwnerName", "BusinessName", "StreetAddress", "SuburbArea", "Website", "InstagramURL", "FacebookURL", "GoogleMapsURL", "Category"]));
-
-    async function startResearch() {
-        setUiState(true);
         allCollectedData = [];
         displayedData = [];
-        logEl.textContent = '';
-        resultsTableBody.innerHTML = '';
-        progressBar.style.width = '0%';
-        progressBar.textContent = '0%';
-        progressBar.classList.add('pulsing');
-        researchStatusIcon.classList.remove('fa-hourglass-start', 'fa-check-circle', 'fa-exclamation-triangle');
-        researchStatusIcon.classList.add('fa-spin', 'fa-spinner');
+        elements.logEl.textContent = '';
+        elements.resultsTableBody.innerHTML = '';
+        elements.progressBar.style.width = '0%';
+        elements.progressBar.textContent = '0%';
+        elements.progressBar.classList.add('pulsing');
+        elements.researchStatusIcon.className = 'fas fa-spinner fa-spin';
 
-        const primaryCategory = primaryCategorySelect.value;
-        const subCategory = subCategorySelect.value;
-        const customCategory = customCategoryInput.value;
+        let categorySearchTerm = elements.primaryCategorySelect.value === "Other/Custom" ? elements.customCategoryInput.value : (elements.subCategorySelect.value || elements.primaryCategorySelect.value);
+        const location = elements.locationInput.value.trim();
+        const postalCode = elements.postalCodeInput.value.trim();
+        const country = elements.countryInput.value;
         
-        let categorySearchTerm;
-        if (primaryCategory === "Other/Custom") {
-            categorySearchTerm = customCategory;
-        } else if (subCategory && subCategory !== "") {
-            categorySearchTerm = subCategory;
-        } else {
-            categorySearchTerm = primaryCategory;
-        }
+        const countValue = parseInt(elements.countInput.value, 10);
+        const find_all = elements.findAllBusinessesCheckbox.checked || !countValue || countValue <= 0;
+        const count = find_all ? -1 : countValue;
 
-        // --- Keep the full value for location/postalCode for server search ---
-        const location = locationInput.value.trim();
-        const postalCode = postalCodeInput.value.trim();
-
-        const country = countryInput.value; // This is the 'text' (e.g., "Australia")
-        // Get the ISO code for the server request if needed, though the server usually handles country names fine for Puppeteer searches.
-        // For Google Places API calls on the front-end, we use the ISO code.
-
-        const count = parseInt(countInput.value, 10);
-        const allowEmailOrPhone = filterEmailOrPhoneCheckbox.checked;
-
-        if (!categorySearchTerm || categorySearchTerm === "" || primaryCategory === "" || (!location && !postalCode) || country === "" || count < 1 || count > 50) {
-            logMessage(`Input Error: Please select/enter a valid category, provide at least a Suburb/Area OR Postal Code, select a Country, and enter a number between 1-50 for 'Number of Businesses to Find'.`, 'error');
-            setUiState(false);
-            progressBar.classList.remove('pulsing');
-            researchStatusIcon.classList.remove('fa-spin', 'fa-spinner');
-            researchStatusIcon.classList.add('fa-exclamation-triangle');
+        if (!categorySearchTerm || (!location && !postalCode) || !country) {
+            logMessage(elements.logEl, `Input Error: Please provide a category, location/postal code, and country.`, 'error');
+            handleScrapeError({ error: "Invalid input" });
             return;
         }
 
-        logMessage(`Sending request to server to start scraping for ${count} qualified prospects...`, 'info');
-        socket.emit('start_scrape', { category: categorySearchTerm, location, postalCode, country, count, allowEmailOrPhone });
+        const targetDisplay = count === -1 ? "all available" : count;
+        logMessage(elements.logEl, `Sending request to server to find ${targetDisplay} businesses...`, 'info');
+        socket.emit('start_scrape', { category: categorySearchTerm, location, postalCode, country, count });
     }
 
-function cleanDisplayValue(text) {
-    if (!text) return '';
-
-    let cleaned = text.replace(/^[^a-zA-Z0-9\s.,'#\-+/&_]+/u, ''); 
-    cleaned = cleaned.replace(/\p{Z}/gu, ' ');
-    cleaned = cleaned.replace(/[\u0000-\u001F\u007F-\u009F\uFEFF\n\r]/g, '');
-    return cleaned.replace(/\s+/g, ' ').trim();
-}
-
-    function addTableRow(data) {
-        const row = document.createElement('tr');
-        const truncate = (str, len) => (str && str.length > len) ? str.slice(0, len) + '...' : str || '';
-        
-        row.innerHTML = `
-            <td>${cleanDisplayValue(data.BusinessName)}</td>
-            <td>${cleanDisplayValue(data.Category)}</td>
-            <td>${cleanDisplayValue(data.SuburbArea)}</td>
-            <td>${cleanDisplayValue(data.StreetAddress)}</td>
-            <td><a href="${data.Website || '#'}" target="_blank" title="${cleanDisplayValue(data.Website || '')}">${truncate(cleanDisplayValue(data.Website), 25)}</a></td>
-            <td>${cleanDisplayValue(data.OwnerName)}</td>
-            <td>${cleanDisplayValue(data.Email)}</td>
-            <td>${cleanDisplayValue(data.Phone)}</td>
-            <td><a href="${data.InstagramURL || '#'}" target="_blank" title="${cleanDisplayValue(data.InstagramURL || '')}">${truncate(cleanDisplayValue(data.InstagramURL), 20)}</a></td>
-            <td><a href="${data.FacebookURL || '#'}" target="_blank" title="${cleanDisplayValue(data.FacebookURL || '')}">${truncate(cleanDisplayValue(data.FacebookURL), 20)}</a></td>
-            <td><a href="${data.GoogleMapsURL || '#'}" target="_blank" title="${cleanDisplayValue(data.GoogleMapsURL || '')}"><i class="fas fa-map-marker-alt"></i> View</a></td>
-        `;
-        resultsTableBody.appendChild(row);
-    }
-    
-    function setUiState(isBusy) {
-        startButton.disabled = isBusy;
-        primaryCategorySelect.disabled = isBusy;
-        subCategorySelect.disabled = isBusy;
-        customCategoryInput.disabled = isBusy;
-        locationInput.disabled = isBusy;
-        postalCodeInput.disabled = isBusy;
-        countryInput.disabled = isBusy;
-        countInput.disabled = isBusy;
-        filterEmailOrPhoneCheckbox.disabled = isBusy;
-        setDownloadButtonStates(isBusy);
+    function handleScrapeError(error) {
+        logMessage(elements.logEl, `SCRAPE ERROR: ${error.error || 'An unknown server error occurred.'}`, 'error');
+        const uiElementsToManage = getUiElementsForStateChange();
+        setUiState(false, uiElementsToManage);
+        elements.progressBar.classList.remove('pulsing');
+        elements.researchStatusIcon.className = 'fas fa-exclamation-triangle';
+        const target = elements.findAllBusinessesCheckbox.checked ? 0 : parseInt(elements.countInput.value, 10);
+        updateProgressBar(elements.progressBar, elements.researchStatusIcon, 0, 0, 0, target);
     }
 
-    function setDownloadButtonStates(isBusy) {
-        const hasDisplayedData = displayedData.length > 0;
-        downloadFullExcelButton.disabled = isBusy || !hasDisplayedData;
-        downloadNotifyreCSVButton.disabled = isBusy || !hasDisplayedData || !displayedData.some(item => item.Phone && item.Phone.trim() !== '');
-        downloadGoogleWorkspaceCSVButton.disabled = isBusy || !hasDisplayedData || !displayedData.some(item => item.Email && item.Email.trim() !== '');
+    function getUiElementsForStateChange() {
+        return {
+            startButton: elements.startButton,
+            primaryCategorySelect: elements.primaryCategorySelect,
+            subCategorySelect: elements.subCategorySelect,
+            customCategoryInput: elements.customCategoryInput,
+            locationInput: elements.locationInput,
+            postalCodeInput: elements.postalCodeInput,
+            countryInput: elements.countryInput,
+            countInput: elements.countInput,
+            findAllBusinessesCheckbox: elements.findAllBusinessesCheckbox,
+            downloadButtons: {
+                fullExcel: elements.downloadFullExcelButton,
+                notifyre: elements.downloadNotifyreCSVButton,
+                googleWorkspace: elements.downloadGoogleWorkspaceCSVButton
+            },
+            displayedData: displayedData
+        };
     }
     
-    function logMessage(message, type = 'default') {
-        const timestamp = new Date().toLocaleTimeString();
-        let formattedMessage = `[${timestamp}] ${message}`;
-        
-        const span = document.createElement('span');
-        span.textContent = formattedMessage;
-        span.classList.add('log-entry', `log-${type}`);
-
-        logEl.appendChild(span);
-        logEl.appendChild(document.createTextNode('\n'));
-
-        logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    function updateProgressBar(current, total) {
-        let percentage = (current / total) * 100;
-        if (total === 0) percentage = 0;
-        if (percentage > 100) percentage = 100;
-
-        progressBar.style.width = `${percentage}%`;
-        progressBar.textContent = `${Math.round(percentage)}%`;
-        
-        if (percentage === 100) {
-            researchStatusIcon.classList.remove('fa-spin', 'fa-spinner', 'fa-exclamation-triangle', 'fa-hourglass-start');
-            researchStatusIcon.classList.add('fa-check-circle');
-            logEl.scrollTop = logEl.scrollHeight;
-        } else {
-            researchStatusIcon.classList.remove('fa-check-circle', 'fa-exclamation-triangle', 'fa-hourglass-start');
-            researchStatusIcon.classList.add('fa-spin', 'fa-spinner');
-        }
-    }
-
-    function getColumnWidths(data, headers) {
-        if (!data || data.length === 0 || !headers || headers.length === 0) {
-            return [];
-        }
-
-        const widths = headers.map(header => ({ wch: String(header).length + 2 }));
-
-        data.forEach(item => {
-            headers.forEach((header, colIndex) => {
-                const cellValue = String(item[header] || '');
-                const effectiveLength = (header.includes('URL') && cellValue.length > 50) ? 50 : cellValue.length;
-                if (effectiveLength + 2 > widths[colIndex].wch) {
-                    widths[colIndex].wch = effectiveLength + 2;
-                }
-            });
-        });
-
-        return widths.map(w => ({ wch: Math.max(w.wch, 10) }));
-    }
-    
-    function downloadExcel(data, filenamePrefix, fileType, specificHeaders = null) {
-        if (data.length === 0) {
-            logMessage('No data to download for this format!', 'error');
-            return;
-        }
-
-        let exportData;
-        let headers;
-
-        if (specificHeaders) {
-            exportData = data.map(item => {
-                const row = {};
-                specificHeaders.forEach(h => {
-                    if (h === "Phone") row[h] = item.Phone;
-                    else if (h === "Email") row[h] = item.Email;
-                    else if (h === "OwnerName") row[h] = item.OwnerName;
-                    else if (h === "BusinessName") row[h] = item.BusinessName;
-                    else if (h === "StreetAddress") row[h] = item.StreetAddress;
-                    else if (h === "SuburbArea") row[h] = item.SuburbArea;
-                    else if (h === "Website") row[h] = item.Website;
-                    else if (h === "InstagramURL") row[h] = item.InstagramURL;
-                    else if (h === "FacebookURL") row[h] = item.FacebookURL;
-                    else if (h === "GoogleMapsURL") row[h] = item.GoogleMapsURL;
-                    else if (h === "Category") row[h] = item.Category;
-                });
-                return row;
-            });
-            headers = specificHeaders;
-        } else {
-            exportData = data.map(item => ({
-                BusinessName: item.BusinessName,
-                Category: item.Category,
-                'Suburb/Area': item.SuburbArea,
-                StreetAddress: item.StreetAddress,
-                Website: item.Website,
-                OwnerName: item.OwnerName,
-                Email: item.Email,
-                Phone: item.Phone,
-                InstagramURL: item.InstagramURL,
-                FacebookURL: item.FacebookURL,
-                GoogleMapsURL: item.GoogleMapsURL,
-                SourceURLs: [item.GoogleMapsURL, item.Website].filter(Boolean).join(';'),
-                LastVerifiedDate: item.LastVerifiedDate
-            }));
-            headers = [
-                "BusinessName", "Category", "Suburb/Area", "StreetAddress", "Website", 
-                "OwnerName", "Email", "Phone", "InstagramURL", "FacebookURL", 
-                "GoogleMapsURL", "SourceURLs", "LastVerifiedDate"
-            ];
-        }
-
-        const ws = XLSX.utils.json_to_sheet(exportData, { header: headers });
-        ws['!cols'] = getColumnWidths(exportData, headers);
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Business List");
-
-        if (fileType === 'xlsx') {
-            const headerStyle = {
-                fill: { fgColor: { rgb: "FFE6F0F8" } },
-                font: { bold: true, color: { rgb: "FF003366" } },
-                border: {
-                    top: { style: "thin", color: { rgb: "FFD1D9E6" } },
-                    bottom: { style: "thin", color: { rgb: "FFD1D9E6" } },
-                    left: { style: "thin", color: { rgb: "FFD1D9E6" } },
-                    right: { style: "thin", color: { rgb: "FFD1D9E6" } }
-                }
-            };
-            const rowStyleEven = { fill: { fgColor: { rgb: "FFFDFDFD" } } };
-            const rowStyleOdd = { fill: { fgColor: { rgb: "FFFFFFFF" } } };
-
-            XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
-            const range = XLSX.utils.decode_range(ws['!ref']);
-
-            for (let C = range.s.c; C <= range.e.c; ++C) {
-                const cellRef = XLSX.utils.encode_cell({ r: range.s.r, c: C });
-                if (!ws[cellRef]) ws[cellRef] = {};
-                ws[cellRef].s = headerStyle;
-            }
-
-            for (let R = range.s.r + 1; R <= range.e.r + 1; ++R) {
-                const rowStyle = (R % 2 === 0) ? rowStyleEven : rowStyleOdd;
-                for (let C = range.s.c; C <= range.e.c; ++C) {
-                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (ws[cellRef]) {
-                        if (!ws[cellRef].s) ws[cellRef].s = {};
-                        Object.assign(ws[cellRef].s, rowStyle);
-                    }
-                }
-            }
-            XLSX.writeFile(wb, `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.xlsx`);
-            logMessage(`Excel file '${filenamePrefix}.xlsx' generated successfully with styling!`, 'success');
-        } else if (fileType === 'csv') {
-            XLSX.writeFile(wb, `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.csv`);
-            logMessage(`CSV file '${filenamePrefix}.csv' generated successfully!`, 'success');
-        }
-    }
+    // --- Run Initialization ---
+    initializeApp();
 });
