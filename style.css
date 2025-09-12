@@ -22,7 +22,10 @@
 
 /* Global Styles */
 html, body {
-    height: 100%;
+    /* --- THIS IS THE FIX --- */
+    min-height: 100vh; /* REPLACED height: 100%; This allows the body to grow with content. */
+    /* --- END OF FIX --- */
+
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -618,4 +621,4 @@ footer {
         padding: 10px 12px; /* Smallest padding for inputs on very small screens */
         font-size: 0.9em;
     }
-}   
+}
