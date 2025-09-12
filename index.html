@@ -2,97 +2,106 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
     <title>RTRL Property Prospector</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
-    <!-- IMPORTANT: Define window.initMap here to ensure it's available when Google Maps API loads -->
     <script>
-        // Expose a global object for the main script to attach to
         window.rtrlApp = window.rtrlApp || {};
-
-        // This function is called by the Google Maps API once it has loaded.
         window.initMap = function() {
-            // Check if our main script.js has loaded and exposed its initialization function.
-            // If it has, call it. Otherwise, script.js will check for google.maps.
             if (typeof window.rtrlApp.initializeMapServices === 'function') {
                 window.rtrlApp.initializeMapServices();
-            } else {
-                console.log("initMap called by Google Maps, but script.js not fully ready. Deferring map services initialization within script.js.");
             }
         };
     </script>
-
-
     <script src="https://maps.googleapis.com/maps/api/js?key=%%GOOGLE_MAPS_API_KEY%%&libraries=places&callback=initMap" async defer></script>
 </head>
 <body>
     <div class="app-container">
         <header>
-            <div class="header-content">
-                <i class="fas fa-building app-icon"></i>
+            <div class="logo">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="header-text">
                 <h1>RTRL Property Prospector</h1>
-                <p>Intelligent Client Prospecting for Commercial Real Estate.</p>
+                <p>Intelligent Client Prospecting for Commercial Real Estate</p>
             </div>
         </header>
 
-        <div class="main-layout">
-            <aside id="sidebar-controls" class="card">
-                <h2><i class="fas fa-search-dollar"></i> 1. Define Your Search</h2>
+        <main class="main-layout">
+
+            <!-- Left Column: Search Controls -->
+            <div class="search-controls card">
+                <h2><i class="fas fa-search"></i> Define Your Search</h2>
+                
                 <div class="form-group">
-                    <label for="primaryCategorySelect"><i class="fas fa-tag"></i> Business Category:</label>
+                    <label for="primaryCategorySelect">Business Category</label>
                     <select id="primaryCategorySelect"></select>
                 </div>
+
                 <div class="form-group" id="subCategoryGroup" style="display: none;">
-                    <label for="subCategorySelect"><i class="fas fa-tags"></i> Sub-Category (Optional):</label>
+                    <label for="subCategorySelect">Sub-Category (Optional)</label>
                     <select id="subCategorySelect"></select>
                 </div>
+
                 <div class="form-group" id="customCategoryGroup" style="display: none;">
-                    <label for="customCategoryInput"><i class="fas fa-feather-alt"></i> Custom Category:</label>
+                    <label for="customCategoryInput">Custom Category</label>
                     <input type="text" id="customCategoryInput" placeholder="e.g., Artisan Cheese Shop">
                 </div>
-                <!-- Suburb / Area input with suggestions container -->
-                <div class="form-group">
-                    <label for="locationInput"><i class="fas fa-map-marker-alt"></i> Suburb / Area (Optional):</label>
-                    <input type="text" id="locationInput" value="Melbourne" placeholder="e.g., Melbourne CBD, Bondi" autocomplete="off">
-                    <div id="locationSuggestions" class="autocomplete-suggestions"></div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="locationInput"><i class="fas fa-map-marker-alt"></i> Suburb / Area</label>
+                        <input type="text" id="locationInput" value="Melbourne" placeholder="e.g. Melbourne" autocomplete="off">
+                        <div id="locationSuggestions" class="autocomplete-suggestions"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="postalCodeInput"><i class="fas fa-hashtag"></i> Postal Code</label>
+                        <input type="text" id="postalCodeInput" value="3000" placeholder="e.g. 3000" autocomplete="off">
+                        <div id="postalCodeSuggestions" class="autocomplete-suggestions"></div>
+                    </div>
                 </div>
-                <!-- Postal Code input with suggestions container -->
+
                 <div class="form-group">
-                    <label for="postalCodeInput"><i class="fas fa-mailbox"></i> Postal Code (Optional):</label>
-                    <input type="text" id="postalCodeInput" value="3000" placeholder="e.g., 3000, 2026" autocomplete="off">
-                    <div id="postalCodeSuggestions" class="autocomplete-suggestions"></div>
-                </div>
-                <!-- Country input with suggestions container -->
-                <div class="form-group">
-                    <label for="countryInput"><i class="fas fa-globe-asia"></i> Country:</label>
+                    <label for="countryInput"><i class="fas fa-globe-asia"></i> Country</label>
                     <input type="text" id="countryInput" value="Australia" placeholder="Type to search country" autocomplete="off">
                     <div id="countrySuggestions" class="autocomplete-suggestions"></div>
                 </div>
+
                 <div class="form-group">
-                    <label for="count"><i class="fas fa-list-ol"></i> Number of Businesses to Find:</label>
-                    <input type="number" id="count" value="10" min="0" placeholder="Leave blank or 0 for all">
+                    <label for="count">Number of Businesses to Find</label>
+                    <input type="number" id="count" value="10" min="1">
                 </div>
+                
                 <div class="form-group checkbox-group">
-                    <input type="checkbox" id="findAllBusinesses">
+                    <input type="checkbox" id="findAllBusinesses" name="find_option">
                     <label for="findAllBusinesses">Find all available businesses</label>
                 </div>
-                <button id="startButton" class="btn btn-primary"><i class="fas fa-play-circle"></i> Start Research</button>
-            </aside>
-
-            <main id="main-content">
-                <section class="progress-section card">
-                    <h2><i class="fas fa-hourglass-start" id="researchStatusIcon"></i> 2. Research in Progress</h2>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="progressBar">0%</div>
-                    </div>
-                    <pre id="log" class="log-console"></pre>
-                </section>
                 
-                <section class="results-section card">
-                    <h2><i class="fas fa-table"></i> 3. Collected Data</h2>
+                <button id="startButton" class="btn btn-primary"><i class="fas fa-play"></i> Start Research</button>
+            </div>
+
+            <!-- Right Column: Progress and Data -->
+            <div class="results-display">
+                <div class="research-progress card">
+                    <h2><i class="fas fa-check-circle" id="researchStatusIcon"></i> Research in Progress</h2>
+                    <label>Progress</label>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div id="progressBar"></div>
+                        </div>
+                        <span id="progressPercentage" class="progress-percentage">0%</span>
+                    </div>
+                    <label>System Log</label>
+                    <pre id="log" class="log-console">Waiting to start research...</pre>
+                </div>
+                
+                <!-- FIXED: Added id="collectedDataCard" to this element -->
+                <div class="collected-data card" id="collectedDataCard">
+                    <h2>Collected Data</h2>
+                    <div class="placeholder-text">No data collected yet. Start a research to see results here.</div>
                     <div class="table-container">
                         <table>
                             <thead>
@@ -114,19 +123,20 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="download-buttons-group">
-                        <button id="downloadFullExcelButton" class="btn btn-success" disabled><i class="fas fa-file-excel"></i> Download All Data (.xlsx)</button>
-                        <button id="downloadNotifyreCSVButton" class="btn btn-secondary" disabled><i class="fas fa-sms"></i> Generate for Notifyre (SMS)</button>
-                        <button id="downloadGoogleWorkspaceCSVButton" class="btn btn-secondary" disabled><i class="fas fa-envelope"></i> Generate for Google Workspace (Email)</button>
+                     <div class="download-buttons-group">
+                        <button id="downloadFullExcelButton" class="btn btn-success" disabled>Download All Data (.xlsx)</button>
+                        <button id="downloadNotifyreCSVButton" class="btn btn-secondary" disabled>Generate for Notifyre (SMS)</button>
+                        <button id="downloadGoogleWorkspaceCSVButton" class="btn btn-secondary" disabled>Generate for Google Workspace (Email)</button>
                     </div>
-                </section>
-            </main>
-        </div>
-
+                </div>
+            </div>
+        </main>
+        
         <footer>
             <p>&copy; <span id="currentYear"></span> RTRL Property. All rights reserved.</p>
         </footer>
     </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="ui-helpers.js"></script>
     <script src="script.js"></script>
