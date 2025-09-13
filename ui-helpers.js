@@ -102,26 +102,70 @@ function cleanDisplayValue(text) {
 /**
  * Adds a new row to the results table.
  */
-function addTableRow(tableBody, data) {
-    const row = document.createElement('tr');
+function addTableRow(gridBody, data, index) {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+
+    const createCell = (content = '', title = '') => {
+        const cell = document.createElement('span');
+        if (typeof content === 'object') {
+            cell.appendChild(content);
+        } else {
+            cell.textContent = content;
+        }
+        if (title) {
+            cell.title = title;
+        }
+        return cell;
+    };
+
+    const createLinkCell = (url, text, len) => {
+        const cell = document.createElement('span');
+        if (url) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.textContent = (text && text.length > len) ? text.slice(0, len) + '...' : text;
+            link.title = url;
+            cell.appendChild(link);
+        }
+        return cell;
+    };
+
+    // Checkbox Cell
+    const checkboxContainer = document.createElement('span');
+    checkboxContainer.className = 'checkbox-column';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'row-checkbox';
+    checkbox.dataset.index = index;
+    checkbox.checked = true;
+    checkboxContainer.appendChild(checkbox);
     
-    const truncate = (str, len) => (str && str.length > len) ? str.slice(0, len) + '...' : str || '';
+    // Maps Icon Cell
+    const mapsLink = document.createElement('a');
+    mapsLink.href = data.GoogleMapsURL || '#';
+    mapsLink.target = '_blank';
+    mapsLink.title = data.GoogleMapsURL || '';
+    mapsLink.innerHTML = `<i class="fas fa-map-marker-alt"></i> View`;
+
+    const cells = [
+        checkboxContainer,
+        createCell(cleanDisplayValue(data.BusinessName), cleanDisplayValue(data.BusinessName)),
+        createCell(cleanDisplayValue(data.Category), cleanDisplayValue(data.Category)),
+        createCell(cleanDisplayValue(data.SuburbArea), cleanDisplayValue(data.SuburbArea)),
+        createCell(cleanDisplayValue(data.StreetAddress), cleanDisplayValue(data.StreetAddress)),
+        createLinkCell(data.Website, cleanDisplayValue(data.Website), 25),
+        createCell(cleanDisplayValue(data.OwnerName), cleanDisplayValue(data.OwnerName)),
+        createCell(cleanDisplayValue(data.Email), cleanDisplayValue(data.Email)),
+        createCell(cleanDisplayValue(data.Phone), cleanDisplayValue(data.Phone)),
+        createLinkCell(data.InstagramURL, cleanDisplayValue(data.InstagramURL), 20),
+        createLinkCell(data.FacebookURL, cleanDisplayValue(data.FacebookURL), 20),
+        createCell(mapsLink)
+    ];
     
-    row.innerHTML = `
-        <td class="checkbox-column"><input type="checkbox" class="row-checkbox" checked></td>
-        <td>${cleanDisplayValue(data.BusinessName)}</td>
-        <td>${cleanDisplayValue(data.Category)}</td>
-        <td>${cleanDisplayValue(data.SuburbArea)}</td>
-        <td>${cleanDisplayValue(data.StreetAddress)}</td>
-        <td><a href="${data.Website || '#'}" target="_blank" title="${cleanDisplayValue(data.Website || '')}">${truncate(cleanDisplayValue(data.Website), 25)}</a></td>
-        <td>${cleanDisplayValue(data.OwnerName)}</td>
-        <td>${cleanDisplayValue(data.Email)}</td>
-        <td>${cleanDisplayValue(data.Phone)}</td>
-        <td><a href="${data.InstagramURL || '#'}" target="_blank" title="${cleanDisplayValue(data.InstagramURL || '')}">${truncate(cleanDisplayValue(data.InstagramURL), 20)}</a></td>
-        <td><a href="${data.FacebookURL || '#'}" target="_blank" title="${cleanDisplayValue(data.FacebookURL || '')}">${truncate(cleanDisplayValue(data.FacebookURL), 20)}</a></td>
-        <td><a href="${data.GoogleMapsURL || '#'}" target="_blank" title="${cleanDisplayValue(data.GoogleMapsURL || '')}"><i class="fas fa-map-marker-alt"></i> View</a></td>
-    `;
-    tableBody.appendChild(row);
+    cells.forEach(cell => row.appendChild(cell));
+    gridBody.appendChild(row);
 }
 
 /**
@@ -183,12 +227,10 @@ function updateProgressBar(progressBarEl, statusIconEl, processed, discovered, a
     let isSearchAll = target === -1;
 
     if (isSearchAll) {
-        // For "Find All", progress is based on how many of the discovered URLs have been processed.
         if (discovered > 0) {
             percentage = (processed / discovered) * 100;
         }
     } else {
-        // For a specific count, progress is based on how many have been added vs the target.
         if (target > 0) {
             percentage = (added / target) * 100;
         }
@@ -199,13 +241,12 @@ function updateProgressBar(progressBarEl, statusIconEl, processed, discovered, a
     progressBarEl.style.width = `${percentage}%`;
     progressBarEl.textContent = `${Math.round(percentage)}%`;
     
-    // The scrape is "complete" when the target number is met or when all discovered URLs are processed in "Find All" mode.
     const isComplete = !isSearchAll ? (added >= target) : (processed === discovered && discovered > 0);
 
     if (isComplete) {
-        statusIconEl.className = 'fas fa-check-circle'; // Reset classes and set
+        statusIconEl.className = 'fas fa-check-circle';
     } else {
-        statusIconEl.className = 'fas fa-spinner fa-spin'; // Reset and set
+        statusIconEl.className = 'fas fa-spinner fa-spin';
     }
 }
 

@@ -115,28 +115,34 @@
                 <div class="collected-data card" id="collectedDataCard">
                     <h2>Collected Data</h2>
                     <div class="placeholder-text">No data collected yet. Start a research to see results here.</div>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th class="checkbox-column"><input type="checkbox" id="selectAllCheckbox"></th>
-                                    <th>Business</th>
-                                    <th>Category</th>
-                                    <th>Suburb</th>
-                                    <th>Address</th>
-                                    <th>Website</th>
-                                    <th>Owner</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Insta</th>
-                                    <th>FB</th>
-                                    <th>Maps</th>
-                                </tr>
-                            </thead>
-                            <tbody id="resultsTableBody">
-                            </tbody>
-                        </table>
+                    
+                    <div class="filter-bar">
+                        <i class="fas fa-filter"></i>
+                        <input type="text" id="filterInput" placeholder="Filter results by name, suburb, address...">
                     </div>
+
+                    <div class="results-grid-container">
+                        <div class="results-grid" id="resultsGrid">
+                            <div class="grid-header" id="resultsTableHeader">
+                                <div class="checkbox-column"><input type="checkbox" id="selectAllCheckbox"></div>
+                                <div class="sortable" data-sort-key="BusinessName">Business</div>
+                                <div>Category</div>
+                                <div class="sortable" data-sort-key="SuburbArea">Suburb</div>
+                                <div>Address</div>
+                                <div>Website</div>
+                                <div>Owner</div>
+                                <div>Email</div>
+                                <div>Phone</div>
+                                <div>Insta</div>
+                                <div>FB</div>
+                                <div>Maps</div>
+                            </div>
+                            <div class="grid-body" id="resultsTableBody">
+                                <!-- Rows will be inserted here by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
                      <div class="download-buttons-group">
                         <button id="downloadFullExcelButton" class="btn btn-success" disabled>Download Selected (.xlsx)</button>
                         <button id="downloadNotifyreCSVButton" class="btn btn-secondary" disabled>Generate SMS List</button>

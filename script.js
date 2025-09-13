@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io('http://localhost:3000');
-    const elements = { startButton: document.getElementById('startButton'), downloadFullExcelButton: document.getElementById('downloadFullExcelButton'), downloadNotifyreCSVButton: document.getElementById('downloadNotifyreCSVButton'), downloadGoogleWorkspaceCSVButton: document.getElementById('downloadGoogleWorkspaceCSVButton'), primaryCategorySelect: document.getElementById('primaryCategorySelect'), subCategoryGroup: document.getElementById('subCategoryGroup'), subCategorySelect: document.getElementById('subCategorySelect'), customCategoryGroup: document.getElementById('customCategoryGroup'), customCategoryInput: document.getElementById('customCategoryInput'), locationInput: document.getElementById('locationInput'), locationSuggestionsEl: document.getElementById('locationSuggestions'), postalCodeInput: document.getElementById('postalCodeInput'), postalCodeSuggestionsEl: document.getElementById('postalCodeSuggestions'), countryInput: document.getElementById('countryInput'), countrySuggestionsEl: document.getElementById('countrySuggestions'), countInput: document.getElementById('count'), findAllBusinessesCheckbox: document.getElementById('findAllBusinesses'), businessNameInput: document.getElementById('businessNameInput'), bulkSearchContainer: document.getElementById('bulkSearchContainer'), progressBar: document.getElementById('progressBar'), logEl: document.getElementById('log'), resultsTableBody: document.getElementById('resultsTableBody'), selectAllCheckbox: document.getElementById('selectAllCheckbox'), researchStatusIcon: document.getElementById('researchStatusIcon'), progressPercentage: document.getElementById('progressPercentage'), collectedDataCard: document.getElementById('collectedDataCard') };
+    const elements = { startButton: document.getElementById('startButton'), downloadFullExcelButton: document.getElementById('downloadFullExcelButton'), downloadNotifyreCSVButton: document.getElementById('downloadNotifyreCSVButton'), downloadGoogleWorkspaceCSVButton: document.getElementById('downloadGoogleWorkspaceCSVButton'), primaryCategorySelect: document.getElementById('primaryCategorySelect'), subCategoryGroup: document.getElementById('subCategoryGroup'), subCategorySelect: document.getElementById('subCategorySelect'), customCategoryGroup: document.getElementById('customCategoryGroup'), customCategoryInput: document.getElementById('customCategoryInput'), locationInput: document.getElementById('locationInput'), locationSuggestionsEl: document.getElementById('locationSuggestions'), postalCodeInput: document.getElementById('postalCodeInput'), postalCodeSuggestionsEl: document.getElementById('postalCodeSuggestions'), countryInput: document.getElementById('countryInput'), countrySuggestionsEl: document.getElementById('countrySuggestions'), countInput: document.getElementById('count'), findAllBusinessesCheckbox: document.getElementById('findAllBusinesses'), businessNameInput: document.getElementById('businessNameInput'), bulkSearchContainer: document.getElementById('bulkSearchContainer'), progressBar: document.getElementById('progressBar'), logEl: document.getElementById('log'), resultsTableBody: document.getElementById('resultsTableBody'), resultsTableHeader: document.getElementById('resultsTableHeader'), selectAllCheckbox: document.getElementById('selectAllCheckbox'), researchStatusIcon: document.getElementById('researchStatusIcon'), progressPercentage: document.getElementById('progressPercentage'), collectedDataCard: document.getElementById('collectedDataCard'), filterInput: document.getElementById('filterInput') };
     let allCollectedData = [], displayedData = [], service, geocoder, locationAutocompleteTimer, postalCodeAutocompleteTimer, countryAutocompleteTimer;
+    let currentSort = { key: 'BusinessName', direction: 'asc' };
     const categories = { "Select Category": [], "Other/Custom": [], "Café": ["Café", "Coffee shop"], "Bakery": ["Bakery", "Patisserie", "Cake shop", "Donut shop"], "Restaurant": ["Restaurant", "Thai restaurant", "Italian restaurant", "Japanese restaurant", "Indian restaurant", "Chinese restaurant", "Mexican restaurant", "Vietnamese restaurant", "Sushi", "Kebab shop", "Fish and chips", "Pizza takeaway"], "Fast Food": ["Fast food restaurant", "Burger restaurant", "Fried chicken takeaway"], "Grocer": ["Supermarket", "Grocer", "Butcher", "Seafood shop", "Fruit and vegetable store", "Deli", "Health food store", "Gourmet grocery store"], "Specialty Drinks": ["Bubble tea shop", "Juice bar", "Liquor store", "Bottle shop"], "Fashion": ["Clothing store", "Women's clothing store", "Men's clothing store", "Boutique", "Lingerie store", "Swimwear store", "Surf shop"], "Footwear & Bags": ["Shoe store", "Handbag store", "Luggage store"], "Jewellery & Accessories": ["Jewellery store", "Watch shop", "Accessory store"], "Children & Babies": ["Children's clothing store", "Toy store", "Baby store"], "Department & Discount": ["Department store", "Discount store", "Variety store"], "Homewares & Gifts": ["Homewares store", "Kitchenware store", "Gift shop", "Florist", "Stationery store"], "Electronics & Entertainment": ["Electronics store", "Mobile phone store", "Phone repair shop", "Video game store", "Book store", "Newsagent"], "Sport & Fitness": ["Sporting goods store", "Sportswear store", "Bicycle shop", "Gym"], "Hobbies & Lifestyle": ["Pet store", "Craft store", "Tobacconist", "Vape shop"], "Health Services": ["Pharmacy", "Chemist", "Optometrist", "Dentist", "Medical Centre", "Audiology clinic", "Massage therapist", "Physiotherapist", "Chiropractor"], "Beauty & Hair": ["Hair salon", "Barber shop", "Nail salon", "Beauty salon", "Cosmetics store", "Perfumery", "Tanning salon"], "Financial & Professional": ["Bank", "Post Office", "Travel agent", "Real estate agent", "Accountant", "Law firm"], "Personal Services": ["Dry cleaner", "Laundry service", "Shoe repair", "Key cutting service", "Alterations service", "Tattoo shop"] };
     const countries = [ { value: "AU", text: "Australia" }, { value: "NZ", text: "New Zealand" }, { value: "US", text: "United States" }, { value: "GB", text: "United Kingdom" }, { value: "CA", text: "Canada" }, { value: "DE", text: "Germany" }, { value: "FR", text: "France" }, { value: "ES", text: "Spain" }, { value: "IT", "text": "Italy" }, { value: "JP", text: "Japan" }, { value: "SG", text: "Singapore" }, { value: "HK", text: "Hong Kong" } ];
     
@@ -19,19 +20,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.locationInput.value = [suburbName, stateName].filter(Boolean).join(', ');
         elements.countryInput.value = countryName;
-
-        // --- MODIFIED LOGIC: Only fill postcode if the selection was NOT from the Suburb/Area input ---
         if (source !== 'location') {
             elements.postalCodeInput.value = postalCode;
         }
     }
+    
+    // --- START: New and Refactored Functions for Filtering/Sorting ---
+    function renderTable() {
+        elements.resultsTableBody.innerHTML = '';
+        if (displayedData.length > 0) {
+            displayedData.forEach(business => addTableRow(elements.resultsTableBody, business));
+        }
+        updateSortHeaders();
+    }
+
+    function applyFilterAndSort() {
+        const filterText = elements.filterInput.value.toLowerCase();
+        
+        if (filterText) {
+            displayedData = allCollectedData.filter(item => {
+                return (item.BusinessName?.toLowerCase().includes(filterText) ||
+                        item.Category?.toLowerCase().includes(filterText) ||
+                        item.StreetAddress?.toLowerCase().includes(filterText) ||
+                        item.SuburbArea?.toLowerCase().includes(filterText));
+            });
+        } else {
+            displayedData = [...allCollectedData];
+        }
+        
+        applySort();
+        renderTable();
+    }
+
+    function applySort() {
+        const { key, direction } = currentSort;
+        if (!key) return;
+
+        displayedData.sort((a, b) => {
+            const valA = a[key] || '';
+            const valB = b[key] || '';
+            const comparison = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+            return direction === 'asc' ? comparison : -comparison;
+        });
+    }
+    
+    function updateSortHeaders() {
+        elements.resultsTableHeader.querySelectorAll('.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+            if (th.dataset.sortKey === currentSort.key) {
+                th.classList.add(currentSort.direction);
+            }
+        });
+    }
+    // --- END: New and Refactored Functions ---
 
     function setupEventListeners() {
         elements.primaryCategorySelect.addEventListener('change', (event) => { handleCategoryChange(event.target.value, elements.subCategoryGroup, elements.subCategorySelect, elements.customCategoryGroup, elements.customCategoryInput, categories); });
         elements.findAllBusinessesCheckbox.addEventListener('change', (e) => { elements.countInput.disabled = e.target.checked; if (e.target.checked) elements.countInput.value = ''; });
         elements.countryInput.addEventListener('input', () => { clearTimeout(countryAutocompleteTimer); countryAutocompleteTimer = setTimeout(() => { const query = elements.countryInput.value.toLowerCase(); if (query.length < 1) { elements.countrySuggestionsEl.style.display = 'none'; return; } const filteredCountries = countries.filter(c => c.text.toLowerCase().includes(query)); renderSuggestions(elements.countryInput, elements.countrySuggestionsEl, filteredCountries, 'text', 'value', (c) => { elements.countryInput.value = c.text; }); }, 300); });
         
-        // --- MODIFIED: Separate handlers for location and postcode ---
         const handleLocationSelection = async (item) => { try { const details = await getPlaceDetails(item.place_id); await populateFieldsFromPlaceDetails(details, 'location'); } catch (error) { console.error("Could not get place details:", error); elements.locationInput.value = item.description.split(',')[0]; } };
         const handlePostalCodeSelection = async (item) => { try { const details = await getPlaceDetails(item.place_id); await populateFieldsFromPlaceDetails(details, 'postalCode'); } catch (error) { console.error("Could not get place details:", error); } };
         
@@ -62,8 +109,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedData = [];
             const allCheckboxes = elements.resultsTableBody.querySelectorAll('.row-checkbox');
             allCheckboxes.forEach((checkbox, index) => {
-                if (checkbox.checked) {
-                    selectedData.push(displayedData[index]);
+                // IMPORTANT: We now get the original index from a data attribute
+                const originalIndex = checkbox.dataset.index;
+                if (checkbox.checked && displayedData[originalIndex]) {
+                    selectedData.push(displayedData[originalIndex]);
                 }
             });
             return selectedData;
@@ -80,6 +129,21 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.downloadGoogleWorkspaceCSVButton.addEventListener('click', () => {
             const selectedData = getSelectedData();
             downloadExcel(selectedData.filter(d => d.Email), 'google_workspace_email_list', 'csv', elements.logEl, ["Email", "OwnerName", "BusinessName", "StreetAddress", "SuburbArea", "Website", "InstagramURL", "FacebookURL", "GoogleMapsURL", "Category"]);
+        });
+        
+        elements.filterInput.addEventListener('input', applyFilterAndSort);
+        elements.resultsTableHeader.addEventListener('click', (e) => {
+            const header = e.target.closest('.sortable');
+            if (!header) return;
+
+            const key = header.dataset.sortKey;
+            if (currentSort.key === key) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.direction = 'asc';
+            }
+            applyFilterAndSort();
         });
     }
     
@@ -98,16 +162,19 @@ document.addEventListener('DOMContentLoaded', () => {
         logMessage(elements.logEl, `Scraping process finished. Received ${businesses.length} total businesses.`, 'success');
         allCollectedData = [];
         elements.resultsTableBody.innerHTML = '';
-        // --- MODIFIED: Simplified data handling, category comes from backend ---
+
         businesses.forEach((business) => {
             const fullBusinessData = { OwnerName: '', ...business, SuburbArea: elements.locationInput.value.split(',')[0].trim(), LastVerifiedDate: new Date().toISOString().split('T')[0] };
             allCollectedData.push(fullBusinessData);
         });
-        displayedData = allCollectedData;
         
-        if (displayedData.length > 0) {
+        elements.filterInput.value = ''; // Reset filter on new search
+        applyFilterAndSort(); // This will populate displayedData and render the table
+        
+        if (allCollectedData.length > 0) {
             elements.collectedDataCard.classList.add('has-results');
-            displayedData.forEach(business => addTableRow(elements.resultsTableBody, business));
+        } else {
+            elements.collectedDataCard.classList.remove('has-results');
         }
         
         elements.selectAllCheckbox.checked = true;
@@ -140,7 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             logMessage(elements.logEl, `Sending request to find individual business: '${businessName}'...`, 'info');
-            // --- MODIFIED: Send count as -1 to find all matching businesses ---
             socket.emit('start_scrape', { businessName, location, postalCode, country, count: -1 });
         } else {
             let categorySearchTerm = elements.primaryCategorySelect.value === "Other/Custom" ? elements.customCategoryInput.value : (elements.subCategorySelect.value || elements.primaryCategorySelect.value);
@@ -156,7 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetDisplay = count === -1 ? "all available" : count;
             logMessage(elements.logEl, `Sending request to server to find ${targetDisplay} '${categorySearchTerm}' businesses...`, 'info');
             const payload = { category: categorySearchTerm, location, postalCode, country, count };
-            // --- MODIFIED: Don't send category if it's not selected ---
             if (categorySearchTerm) {
                 socket.emit('start_scrape', payload);
             }

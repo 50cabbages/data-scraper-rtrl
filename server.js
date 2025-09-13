@@ -250,15 +250,11 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
         await page.waitForSelector('h1', {timeout: 60000});
         
-        // --- START: NEW WAITING LOGIC ---
-        // Explicitly wait for the category element to appear on the page before trying to scrape.
-        // Use a try-catch block so if a business has no category, it won't crash the scrape.
         try {
-            await page.waitForSelector('[jsaction*="category"]', { timeout: 5000 }); // Wait up to 5 seconds
+            await page.waitForSelector('[jsaction*="category"]', { timeout: 5000 });
         } catch (e) {
             socket.emit('log', '   -> Warning: Could not find category element for this business.');
         }
-        // --- END: NEW WAITING LOGIC ---
 
     } catch (error) {
         throw new Error(`Failed to load Google Maps page or find H1 for URL: ${url}. Error: ${error.message.split('\n')[0]}`);
@@ -301,7 +297,9 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
 async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
     const data = { Email: '', InstagramURL: '', FacebookURL: '', OwnerName: '' };
     try {
-        await page.goto(websiteUrl, { waitUntil: 'domcontentloaded', timeout: 90000 });
+        // --- START: MODIFIED NAVIGATION LOGIC ---
+        await page.goto(websiteUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+        // --- END: MODIFIED NAVIGATION LOGIC ---
 
         const aboutPageKeywords = ['about', 'team', 'our-story', 'who-we-are', 'meet-the-team', 'contact', 'people'];
         const ownerTitleKeywords = ['owner', 'founder', 'director', 'co-founder', 'principal', 'manager', 'proprietor', 'ceo', 'president'];
@@ -314,7 +312,9 @@ async function scrapeWebsiteForGoldData(page, websiteUrl, socket) {
             const aboutLink = allLinksOnCurrentPage.find(link => link.text.includes(keyword) && link.href.startsWith('http'));
             if (aboutLink && aboutLink.href) {
                 socket.emit('log', `   -> Found '${keyword}' page link, navigating to: ${aboutLink.href}...`);
-                await page.goto(aboutLink.href, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                // --- START: MODIFIED NAVIGATION LOGIC ---
+                await page.goto(aboutLink.href, { waitUntil: 'networkidle2', timeout: 30000 });
+                // --- END: MODIFIED NAVIGATION LOGIC ---
                 foundAboutLink = true;
                 break;
             }

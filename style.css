@@ -212,6 +212,7 @@ header {
   font-size: 0.85rem;
   white-space: pre-wrap;
   line-height: 1.5;
+  max-width: 940px;
 }
 .log-entry {
   display: block;
@@ -232,11 +233,7 @@ header {
   flex-grow: 1;
   min-height: 0;
   max-width: 1000px;
-}
-.table-container {
-  flex-grow: 1; 
-  overflow-y: auto;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .placeholder-text {
@@ -244,77 +241,157 @@ header {
   color: var(--secondary-text);
   padding: 3rem 1rem;
 }
-table {
-  width: 100%;
-  min-width: 1200px;
-  border-collapse: collapse;
+.filter-bar, .results-grid-container, .download-buttons-group {
+    display: none;
 }
-.collected-data .table-container {
-  display: none;
-}
-.collected-data .placeholder-text {
-  display: block;
-}
-.collected-data.has-results .table-container {
-  display: block;
+.collected-data.has-results .filter-bar, 
+.collected-data.has-results .results-grid-container,
+.collected-data.has-results .download-buttons-group {
+    display: flex;
 }
 .collected-data.has-results .placeholder-text {
   display: none;
 }
-
-th,
-td {
-  padding: 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.9rem;
-  vertical-align: middle;
-  white-space: nowrap;
+.filter-bar {
+    margin-bottom: 1rem;
+    position: relative;
+    align-items: center;
+    flex-shrink: 0;
 }
-td {
-  word-break: break-all;
+.filter-bar i {
+    position: absolute;
+    left: 1rem;
+    color: var(--secondary-text);
 }
-th:nth-child(5), /* Address Column */
-td:nth-child(5) {
-  white-space: normal;
+#filterInput {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    font-size: 0.95rem;
 }
-thead th {
-  background-color: var(--bg-color);
-  color: var(--secondary-text);
-  font-weight: 600;
-  position: sticky;
-  top: 0;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  min-width: 200px
+#filterInput:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(32, 201, 151, 0.25);
 }
 
-/* --- START: Checkbox Column Styling --- */
-th.checkbox-column, td.checkbox-column {
-    width: 50px;
-    min-width: 50px;
-    text-align: center;
-    padding: 1rem 0.5rem;
+.results-grid-container {
+    flex-grow: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.results-grid {
+    display: grid;
+    /* --- START: MODIFIED GRID TEMPLATE --- */
+    /* This is the key: defines column widths with minmax() for robustness */
+    grid-template-columns: 
+        50px 
+        minmax(250px, 2fr)    /* Business */
+        minmax(150px, 1.5fr)  /* Category */
+        minmax(150px, 1.5fr)  /* Suburb */
+        minmax(250px, 2.5fr)  /* Address */
+        minmax(200px, 1fr)    /* Website */
+        minmax(150px, 1fr)    /* Owner */
+        minmax(200px, 1fr)    /* Email */
+        minmax(150px, 1fr)    /* Phone */
+        minmax(200px, 1fr)    /* Insta */
+        minmax(200px, 1fr)    /* FB */
+        minmax(100px, 1fr);   /* Maps */
+    /* --- END: MODIFIED GRID TEMPLATE --- */
+}
+
+.grid-header {
+    display: contents;
+}
+.grid-header > div {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bg-color);
+    padding: 1rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--secondary-text);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.grid-body {
+    display: contents;
+}
+.grid-row {
+    display: contents;
+}
+.grid-row > span {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex; /* Helps with vertical alignment */
+    align-items: center; /* Vertically centers content */
+}
+.grid-row:hover > span {
+    background-color: #f1f3f5;
+}
+/* Allow address column to wrap */
+.grid-row > span:nth-child(5) {
+    white-space: normal;
+    align-items: flex-start; /* Align wrapped text to the top */
+}
+
+.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 2rem !important;
+}
+.sortable:hover {
+    color: var(--primary-text);
+}
+.sortable::after {
+    content: '';
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.9em;
+    opacity: 0.4;
+}
+.sortable:not(.asc):not(.desc)::after {
+    content: '▲▼';
+}
+.sortable.asc::after {
+    content: '▲';
+    opacity: 1;
+    color: var(--accent-color);
+}
+.sortable.desc::after {
+    content: '▼';
+    opacity: 1;
+    color: var(--accent-color);
+}
+
+.checkbox-column {
+    display: grid;
+    place-items: center;
 }
 .checkbox-column input[type="checkbox"] {
     width: 18px;
     height: 18px;
     accent-color: var(--accent-color);
-    vertical-align: middle;
 }
-/* --- END: Checkbox Column Styling --- */
 
-tbody tr:hover {
-  background-color: #f1f3f5;
-}
-td a {
+span a {
   color: var(--accent-color);
   text-decoration: none;
   font-weight: 600;
 }
-td a:hover {
+span a:hover {
   text-decoration: underline;
 }
 
@@ -347,10 +424,10 @@ td a:hover {
   transform: none;
 }
 .download-buttons-group {
-  display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-top: 1.5rem;
+  flex-shrink: 0;
 }
 .download-buttons-group .btn {
   font-size: 0.9rem;
@@ -457,5 +534,8 @@ footer {
   .form-row {
     flex-direction: column;
     gap: 1.25rem;
+  }
+  .filter-bar {
+      width: 100%;
   }
 }
