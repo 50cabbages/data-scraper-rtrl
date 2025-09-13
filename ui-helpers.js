@@ -108,6 +108,7 @@ function addTableRow(tableBody, data) {
     const truncate = (str, len) => (str && str.length > len) ? str.slice(0, len) + '...' : str || '';
     
     row.innerHTML = `
+        <td class="checkbox-column"><input type="checkbox" class="row-checkbox" checked></td>
         <td>${cleanDisplayValue(data.BusinessName)}</td>
         <td>${cleanDisplayValue(data.Category)}</td>
         <td>${cleanDisplayValue(data.SuburbArea)}</td>
@@ -127,17 +128,26 @@ function addTableRow(tableBody, data) {
  * Enables or disables UI controls based on application state.
  */
 function setUiState(isBusy, elements) {
+    const isIndividualSearch = elements.businessNameInput.value.trim().length > 0;
+    
     for (const key in elements) {
-        if (elements.hasOwnProperty(key) && key !== 'downloadButtons' && key !== 'displayedData') {
+        if (elements.hasOwnProperty(key) && key !== 'downloadButtons' && key !== 'displayedData' && key !== 'bulkSearchContainer') {
             elements[key].disabled = isBusy;
         }
     }
-     // Specific handling for findAll checkbox interaction with countInput
+    
     if (!isBusy) {
-        elements.countInput.disabled = elements.findAllBusinessesCheckbox.checked;
+        elements.countInput.disabled = elements.findAllBusinessesCheckbox.checked || isIndividualSearch;
+        document.getElementById('bulkSearchContainer').querySelectorAll('input, select').forEach(el => {
+            if (el.id !== 'countryInput' && el.id !== 'locationInput' && el.id !== 'postalCodeInput') {
+                 el.disabled = isIndividualSearch;
+            }
+        });
     }
+
     setDownloadButtonStates(isBusy, elements.downloadButtons, elements.displayedData);
 }
+
 
 /**
  * Manages the enabled/disabled state of the download buttons.
@@ -258,5 +268,5 @@ function downloadExcel(data, filenamePrefix, fileType, logEl, specificHeaders = 
     const fullFilename = `${filenamePrefix}_${new Date().toISOString().split('T')[0]}.${fileExtension}`;
 
     XLSX.writeFile(wb, fullFilename);
-    logMessage(logEl, `${fileExtension.toUpperCase()} file '${fullFilename}' generated successfully!`, 'success');
+    logMessage(logEl, `${data.length} records exported to '${fullFilename}' successfully!`, 'success');
 }

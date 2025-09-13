@@ -47,9 +47,11 @@ io.on('connection', (socket) => {
     console.log(`Client connected: ${socket.id}`);
     socket.emit('log', `[Server] Connected to Real-time Scraper.`);
 
-    socket.on('start_scrape', async ({ category, location, postalCode, country, count }) => {
-        const isSearchAll = count === -1;
-        const targetCount = isSearchAll ? Infinity : count;
+    socket.on('start_scrape', async ({ category, location, postalCode, country, count, businessName }) => {
+        const isIndividualSearch = !!businessName;
+        const finalCount = isIndividualSearch ? -1 : count;
+        const isSearchAll = finalCount === -1;
+        const targetCount = isSearchAll ? Infinity : finalCount;
         const areaQuery = [location, postalCode].filter(Boolean).join(' ');
 
         if (!areaQuery || !country) {
@@ -57,14 +59,21 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const searchQuery = `${category} in ${areaQuery}, ${country}`;
-        const targetDisplay = isSearchAll ? "all available" : `${count}`;
-
-        socket.emit('log', `[Server] Starting search for ${targetDisplay} "${category}" prospects in "${areaQuery}, ${country}"`);
+        let searchQuery;
+        let targetDisplay;
+        if (isIndividualSearch) {
+            searchQuery = `${businessName}, ${areaQuery}, ${country}`;
+            targetDisplay = `all businesses named "${businessName}"`;
+            socket.emit('log', `[Server] Starting individual search for ${targetDisplay}`);
+        } else {
+            searchQuery = `${category} in ${areaQuery}, ${country}`;
+            targetDisplay = isSearchAll ? "all available" : `${count}`;
+            socket.emit('log', `[Server] Starting search for ${targetDisplay} "${category}" prospects in "${areaQuery}, ${country}"`);
+        }
         
         let browser;
         try {
-            browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US,en'], protocolTimeout: 120000 });
+            browser = await puppeteer.launch({ headless: false, args: ['--no-sandbox', '--disable-setuid-sandbox', '--lang=en-US,en'], protocolTimeout: 120000 });
             const page = await browser.newPage();
             page.setDefaultNavigationTimeout(60000);
             await page.setExtraHTTPHeaders({ 'Accept-Language': 'en' });
@@ -77,7 +86,7 @@ io.on('connection', (socket) => {
             const MAX_MAPS_COLLECTION_ATTEMPTS = isSearchAll ? 10 : 5;
             const MAX_TOTAL_RAW_URLS_TO_PROCESS = isSearchAll ? 750 : Math.max(count * 5, 50);
 
-            socket.emit('log', `[Server] Target: ${targetDisplay} businesses. Max unique URLs to process: ${MAX_TOTAL_RAW_URLS_TO_PROCESS}.`);
+            socket.emit('log', `[Server] Target: ${isIndividualSearch ? 'all matching' : targetDisplay} businesses. Max unique URLs to process: ${MAX_TOTAL_RAW_URLS_TO_PROCESS}.`);
 
             while (allProcessedBusinesses.length < targetCount && mapsCollectionAttempts < MAX_MAPS_COLLECTION_ATTEMPTS && processedUrlSet.size < MAX_TOTAL_RAW_URLS_TO_PROCESS) {
                 mapsCollectionAttempts++;
@@ -102,10 +111,9 @@ io.on('connection', (socket) => {
                     
                     totalRawUrlsAttemptedDetails++;
                     
-                    // --- UPDATED LOG MESSAGE ---
                     const progressStatus = isSearchAll 
                         ? `Total added: ${allProcessedBusinesses.length}`
-                        : `Added: ${allProcessedBusinesses.length}/${count}`;
+                        : `Added: ${allProcessedBusinesses.length}/${finalCount}`;
                     socket.emit('log', `--- Processing business #${totalRawUrlsAttemptedDetails} of ${processedUrlSet.size} discovered | ${progressStatus} ---`);
 
                     let googleData, websiteData = {};
@@ -120,20 +128,26 @@ io.on('connection', (socket) => {
                     }
 
                     const fullBusinessData = { ...googleData, ...websiteData };
+
+                    if (isIndividualSearch) {
+                        fullBusinessData.Category = googleData.ScrapedCategory || 'N/A';
+                    } else {
+                        fullBusinessData.Category = category;
+                    }
+
                     allProcessedBusinesses.push(fullBusinessData);
                     socket.emit('log', `-> ADDED: ${fullBusinessData.BusinessName || 'N/A'}.`);
 
-                    // --- UPDATED PROGRESS EMIT ---
                     socket.emit('progress_update', {
                         processed: totalRawUrlsAttemptedDetails,
                         discovered: processedUrlSet.size,
                         added: allProcessedBusinesses.length,
-                        target: count // Pass the original target back to the client
+                        target: finalCount
                     });
                 }
             }
 
-            if (allProcessedBusinesses.length < count && !isSearchAll) {
+            if (allProcessedBusinesses.length < count && !isSearchAll && !isIndividualSearch) {
                 socket.emit('log', `Warning: Only found ${allProcessedBusinesses.length} prospects out of requested ${count}.`, 'warning');
             }
 
@@ -235,6 +249,17 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
     try {
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
         await page.waitForSelector('h1', {timeout: 60000});
+        
+        // --- START: NEW WAITING LOGIC ---
+        // Explicitly wait for the category element to appear on the page before trying to scrape.
+        // Use a try-catch block so if a business has no category, it won't crash the scrape.
+        try {
+            await page.waitForSelector('[jsaction*="category"]', { timeout: 5000 }); // Wait up to 5 seconds
+        } catch (e) {
+            socket.emit('log', '   -> Warning: Could not find category element for this business.');
+        }
+        // --- END: NEW WAITING LOGIC ---
+
     } catch (error) {
         throw new Error(`Failed to load Google Maps page or find H1 for URL: ${url}. Error: ${error.message.split('\n')[0]}`);
     }
@@ -264,6 +289,7 @@ async function scrapeGoogleMapsDetails(page, url, socket, country) {
 
         return {
             BusinessName: cleanText(document.querySelector('h1')?.innerText),
+            ScrapedCategory: cleanText(document.querySelector('[jsaction*="category"]')?.innerText),
             StreetAddress: cleanText(document.querySelector('button[data-item-id="address"]')?.innerText),
             Website: document.querySelector('a[data-item-id="authority"]')?.href || '',
             Phone: cleanPhoneNumber(document.querySelector('button[data-item-id*="phone"]')?.innerText, countryCode),
